@@ -136,30 +136,6 @@ def crypto_df(coins: list, start: str, end: str, d_conv: bool=True) -> pd.DataFr
     return df
 
 
-def complete_nan(df_complet: pd.DataFrame, df_empty: pd.DataFrame) -> pd.DataFrame:
-    datas = [
-        data for data in df_complet.index
-        if data not in df_empty.index
-    ]
-
-    df_aux = pd.DataFrame()
-
-    for c in df_empty.columns:
-        s = df_empty[c]
-        preco = 0
-        d_aux = {}
-        for data in df_complet.index:
-            if data not in datas:
-                preco = s.loc[data]
-            else:
-                d_aux[data] = preco
-
-        s = s.append(pd.Series(d_aux)).sort_index()
-        df_aux[c] = s
-
-    return df_aux
-
-
 def time_fraction(start: str, end: str, period: str='d') -> float:
     start = datetime.strptime(start, '%d/%m/%Y')
     end = datetime.strptime(end, '%d/%m/%Y')
@@ -224,7 +200,7 @@ def plot_returns_sns(s: pd.Series, title: str=None, size: tuple=(12, 8)) -> None
         palette=cores
     )
     plt.title(title)
-    plt.xlabel('Retorno Anual (%)')
+    plt.xlabel('Retorno Percentual Anual')
     plt.ylabel(None)
 
 
@@ -364,16 +340,12 @@ def comparison(vol_opt: float, vol_eq: float, ret_opt: float, ret_eq: float, ris
         f'{ret_opt * 100} %\n'
         'Retorno com os pesos iguais: '
         f'{ret_eq * 100} %\n'
-        f'Diferença percentual: {round((ret_opt / ret_eq - 1) * 100, 4)} %\n')
+        f'Diferença percentual: {round((1 - ret_opt / ret_eq) * 100, 4)} %\n')
 
     print(f'Índice de Sharpe: {round(sharpe(ret_opt, vol_opt, risk_free_rate), 4)}')
 
 
 def find(candidates: list, stock: str) -> str:
-    # candidates[3] = [
-    #     coin[:-4] for coin in candidates[3]
-    # ]
-
     for c in candidates:
         if stock in candidates[0]:
             return 'acoes'
@@ -381,8 +353,6 @@ def find(candidates: list, stock: str) -> str:
             return 'fiis'
         elif stock in candidates[2]:
             return 'rf'
-        # elif stock in candidates[3]:
-        #     return 'criptos'
         raise f'{c} Não encontrado.'
 
 

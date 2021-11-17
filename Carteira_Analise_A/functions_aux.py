@@ -15,7 +15,29 @@ import visuals
 
 
 def codigo_bc(code: int, start: str=None, end: str=None) -> pd.DataFrame:
-    def find_line(df: pd.DataFrame, date: datetime):
+    """Retorna um dataframe de um indicador da API do Banco Central. Por
+    exemplo, taxa selic (code = 11). Se 'start' e 'end' forem informados,
+    (datas) será retornado o dataframe somente do período em questão.
+
+    Args:
+        code (int): código do indicador no Banco Central.
+        start (str, optional): Data de início. Padrão: None.
+        end (str, optional): Data final. Padrão: None.
+
+    Returns:
+        pd.DataFrame: dataframe do indicador de código 'code'.
+    """
+    def find_line(df: pd.DataFrame, date: datetime) -> int:
+        """Recebe um dataframe e uma data e retorna seu índice (linha)
+        no dataframe.
+
+        Args:
+            df (pd.DataFrame): dataframe a ser consultado.
+            date (datetime): data a ser localizado o índice.
+
+        Returns:
+            int: índice da linha da data informada.
+        """
         k = 0
         for d in df.index:
             if d == date:
@@ -43,13 +65,28 @@ def codigo_bc(code: int, start: str=None, end: str=None) -> pd.DataFrame:
     return df
 
 
-def carteira(acoes: list, start: str, end: str, source :str='iv') -> pd.DataFrame:
+def carteira(ativos: list, start: str, end: str, source :str='iv') -> pd.DataFrame:
+    """Retorna um dataframe com as variações diárias dos ativos (ações
+    e FIIs) contidos em 'acoes', dentro do período 'start' e 'end'. É
+    possível utilizar as fontes investing.com (source = 'iv') e yahoo
+    finance (source = 'yf').
+
+    Args:
+        ativos (list): lista dos ativos a serem baixados.
+        start (str): data de início no formato dd/mm/aaaa.
+        end (str): data de término no formato dd/mm/aaaa.
+        source (str, optional): fonte de coleta 'iv' ou 'yf'. Padrão: 'iv'.
+
+    Returns:
+        pd.DataFrame: dataframe com os preços diários dos ativos contidos
+        em 'ativos', entre o período 'start' e 'end'.
+    """
     carteira_precos = pd.DataFrame()
 
     if source == 'iv':
-        for acao in acoes:
-            carteira_precos[acao] = iv.get_stock_historical_data(
-                stock=acao,
+        for ativo in ativos:
+            carteira_precos[ativo] = iv.get_stock_historical_data(
+                stock=ativo,
                 country='brazil',
                 from_date=start,
                 to_date=end)['Close']
@@ -57,9 +94,9 @@ def carteira(acoes: list, start: str, end: str, source :str='iv') -> pd.DataFram
         start = '-'.join(start.split('/')[::-1])
         end = '-'.join(end.split('/')[::-1])
 
-        for acao in acoes:
-            t = yf.Ticker(f'{acao}.SA')
-            carteira_precos[acao] = t.history(
+        for ativo in ativos:
+            t = yf.Ticker(f'{ativo}.SA')
+            carteira_precos[ativo] = t.history(
                 start=start,
                 end=end,
                 interval='1d')['Close']
@@ -71,6 +108,18 @@ def carteira(acoes: list, start: str, end: str, source :str='iv') -> pd.DataFram
 
 
 def bin_client() -> Client:
+    """Instancia um objeto do tipo Client para utilizar a API
+    da Binance. 'api_key' e 'api_secret' devem estar contidos
+    num arquivo texto, de nome 'api.txt', da forma
+
+    api_key
+    api_secret
+
+    sem pontuação e espaços.
+
+    Returns:
+        Client: objeto Client da API da Binance.
+    """
     with open('api.txt', 'r') as f:
         linhas = f.readlines()
         key = linhas[0][:-1]
@@ -80,7 +129,34 @@ def bin_client() -> Client:
 
 
 def crypto_df(coins: list, start: str, end: str, d_conv: bool=True) -> pd.DataFrame:
+    """Retorna um dataframe com os preços diários das moedas listadas
+    em 'coins', entre 'start' e 'end'; preços coletados da API da
+    Binance.
+
+    Args:
+        coins (list): moedas a serem coletadas, em formato de lista.
+        start (str): data de início no formato dd/mm/aaaa.
+        end (str): data final no formato dd/mm/aaaa.
+        d_conv (bool, optional): se é necessário converter a data
+        de forma a ser legível pela API da Binance. Padrão: True.
+
+    Returns:
+        pd.DataFrame: dataframe com os preços diários das moedas listadas
+        em 'coins', entre 'start' e 'end'.
+    """
     def date_conv(start: str, end: str) -> tuple:
+        """Função que converte as datas 'start' e 'end', em formato
+        dd/mm/aaaa, para o formato aceito na API da Binance:
+
+        Ex: 10/05/2021 -> 10 May, 2021
+
+        Args:
+            start (str): data de início no formato dd/mm/aaaa.
+            end (str): data final no formato dd/mm/aaaa.
+
+        Returns:
+            tuple: tupla contendo as datas convertidas (start, end).
+        """
         months = {
             '01': 'Jan',
             '02': 'Feb',
@@ -137,6 +213,25 @@ def crypto_df(coins: list, start: str, end: str, d_conv: bool=True) -> pd.DataFr
 
 
 def time_fraction(start: str, end: str, period: str='d') -> float:
+    """Função que calcula a fração de tempo, a partir de 'start' até
+    'end', na escala determinada em 'period', considerando somente os
+    dias de pregão: 252 dias/ano, 21 dias/mês.
+
+    Ex: considerando que haja 30 dias entre 'start' e 'end' e
+    period = 'm', retorna 30/21 = 1.429...
+    Se period = 'a', retorna 30/252 = 0.119...
+    Se period = 'd', retorna 30.
+
+    Args:
+        start (str): data de início no formato dd/mm/aaaa.
+        end (str): data final no formato dd/mm/aaaa,
+        period (str, optional): escala de tempo: 'd', 'm' ou
+        'a'. Padrão: 'd'.
+
+    Returns:
+        float: quantos dias/meses/anos (se period = 'd'/'m'/'a')
+        há (de pregão) entre 'start' e 'end'.
+    """
     start = datetime.strptime(start, '%d/%m/%Y')
     end = datetime.strptime(end, '%d/%m/%Y')
 
@@ -151,6 +246,19 @@ def time_fraction(start: str, end: str, period: str='d') -> float:
 
 
 def selic(start: str, end: str, period: str='d') -> float:
+    """Retorna a porcentagem, diária, mensal ou anual, média
+    da taxa selic da API do Banco Central entre 'start' e 'end',
+    a depender de 'period'.
+
+    Args:
+        start (str): data de início no formato dd/mm/aaaa.
+        end (str): data final no formato dd/mm/aaaa.
+        period (str, optional): diária/mensal/anual ('d'/'m'/'a').
+        Padrão: 'd'.
+
+    Returns:
+        float: média da taxa selic no período 'start' e 'end'.
+    """
     s = codigo_bc(11, start, end).mean()[0]
 
     # selic diária / mensal / anual
@@ -166,6 +274,27 @@ def selic(start: str, end: str, period: str='d') -> float:
 
 
 def returns(df: pd.DataFrame, which: str='daily', period: str='a'):
+    """Retorna um dataframe ou uma série dos retornos de df, a depender
+    de 'which', diários, mensais ou anuais, a depender de 'period'.
+
+    Ex: which = 'daily' retorna df.pct_change().dropna() (retornos diários);
+    which = 'total' retorna (df.iloc[-1] - df.iloc[0]) / df.iloc[0]
+    (retornos totais), que podem ser diários (period = 'd'), mensais
+    (period = 'm') ou anuais (period = 'a');
+    which = 'acm' retorna os retornos acumulados
+    (1 + df.pct_change().dropna()).cumprod()
+
+    Args:
+        df (pd.DataFrame): dataframe dos preços.
+        which (str, optional): tipo de retorno desejado: diário/total/
+        acumulado ('daily'/'total'/'acm'). Padrão: 'daily'.
+        period (str, optional): retorno diário/mensal/anual 'd'/'m'/'a'
+        (válido somente para which = 'total'). Padrão: 'a'.
+
+    Returns:
+        pd.DataFrame ou pd.Series: a depender de 'which'; retornos diários
+        (dataframe), totais (series) ou acumulados (dataframe).
+    """
     if which == 'daily':
         return df.pct_change().dropna()
     elif which == 'total':
@@ -189,6 +318,15 @@ def returns(df: pd.DataFrame, which: str='daily', period: str='a'):
 
 
 def plot_returns_sns(s: pd.Series, title: str=None, size: tuple=(12, 8)) -> None:
+    """Gráfico de barras horizontais dos valores (retornos anualizados)
+    de 's', com esquema de cores: #de2d26 (#3182bd) para retornos
+    negativos (positivos).
+
+    Args:
+        s (pd.Series): série com os retornos anualizados.
+        title (str, optional): título do plot. Padrão: None.
+        size (tuple, optional): tamanho do plot. Padrão: (12, 8).
+    """
     s = s.sort_values(ascending=True)
 
     cores = ['#de2d26' if v < 0 else '#3182bd' for v in s.values]
@@ -205,6 +343,16 @@ def plot_returns_sns(s: pd.Series, title: str=None, size: tuple=(12, 8)) -> None
 
 
 def search(txt: str, n: int):
+    """Função que coleta as 'n' primeiras buscas referentes a
+    txt = 'tesouro' ou txt = 'bvsp'.
+
+    Args:
+        txt (str): objeto a ser pesquisado: 'tesouro' ou 'bvsp'.
+        n (int): número de resultados.
+
+    Returns:
+        iv..utils.search_obj.SearchObj: iterator de dicionários
+    """
     pdt = []
     if txt == 'tesouro':
         pdt = ['bonds']
@@ -222,6 +370,27 @@ def search(txt: str, n: int):
 
 
 def rf_carteira(bonds: dict, start: str, end: str, search_lim: int=5) -> pd.DataFrame:
+    """Coleta os preços diários dos títulos informados em 'bonds'
+    entre 'start' e 'end'. Os títulos devem ser informados em forma
+    de dicionário, com o nome a ser constado no dataframe e o índice
+    do resultado de search('tesouro, search_lim).
+
+    Ex: em search('tesouro', 5), temos Selic2027 para o índice 3;
+    então bonds = {'Selic2027': 3} coletará os preços diários de
+    Selic2027 e retornará um dataframe com a coluna 'Selic2027'.
+
+    Args:
+        bonds (dict): dicionário contendo o label a ser inserido no
+        dataframe como chave e o índice referente à posição de
+        search('tesouro', search_lim) como valor.
+        start (str): data de início no formato dd/mm/aaaa.
+        end (str): data final no formato dd/mm/aaaa.
+        search_lim (int, optional): número de resultados. Padrão: 5.
+
+    Returns:
+        pd.DataFrame: dataframe com os preços diários com colunas
+        bonds.keys().
+    """
     searchs = search('tesouro', search_lim)
 
     df = pd.DataFrame()
@@ -238,26 +407,45 @@ def rf_carteira(bonds: dict, start: str, end: str, search_lim: int=5) -> pd.Data
     return df
 
 
-def mape(y_true: np.array, y_pred: np.array) -> float:
-    return np.mean(
-        np.abs(
-            (y_true - y_pred)/y_true * 100
-        )) / len(y_true)
-
-
 def mae(y_true: np.array, y_pred: np.array) -> float:
+    """Função que calcula o mean absolute error entre
+    y_true e y_pred.
+
+    Args:
+        y_true (np.array): array dos valores observados.
+        y_pred (np.array): array dos valores preditos.
+
+    Returns:
+        float: mean absolute error(y_true, y_pred)
+    """
     return metrics.mean_absolute_error(y_true, y_pred)
 
 
-def rsme(y_true: np.array, y_pred: np.array) -> float:
+def rmse(y_true: np.array, y_pred: np.array) -> float:
+    """Função que calcula o root mean square error entre
+    y_true e y_pred.
+
+    Args:
+        y_true (np.array): array dos valores observados.
+        y_pred (np.array): array dos valores preditos.
+
+    Returns:
+        float: root mean square error(y_true, y_pred)
+    """
     return np.sqrt(metrics.mean_squared_error(y_true, y_pred))
 
 
 def all_metrics(y_true: np.array, y_pred: np.array) -> None:
+    """Imprime na tela o mae(y_true, y_pred) e rmse(y_true,
+    y_pred).
+
+    Args:
+        y_true (np.array): array dos valores observados.
+        y_pred (np.array): array dos valores preditos.
+    """
     print(
         f'MAE: {mae(y_true, y_pred)}\n'
-        f'RSME: {rsme(y_true, y_pred)}'
-        # f'MAPE: {mape(y_true, y_pred)}'
+        f'RMSE: {rmse(y_true, y_pred)}'
     )
 
 

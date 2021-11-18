@@ -450,6 +450,16 @@ def all_metrics(y_true: np.array, y_pred: np.array) -> None:
 
 
 def mae_cov(cov_past: pd.DataFrame, cov_fut: pd.DataFrame) -> float:
+    """Função que calcula o MAE para dois dataframes de covariância,
+    passado e futuro, em porcentagem.
+
+    Args:
+        cov_past (pd.DataFrame): dataframe da covariância passado.
+        cov_fut (pd.DataFrame): dataframe da covariância futuro.
+
+    Returns:
+        float: MAE entre os dataframes de covariância, em porcentagem.
+    """
     r = np.sum(
         np.abs(
             np.diag(cov_past) - np.diag(cov_fut)
@@ -460,6 +470,16 @@ def mae_cov(cov_past: pd.DataFrame, cov_fut: pd.DataFrame) -> float:
 
 
 def value_risk(df: pd.DataFrame) -> dict:
+    """Retorna um dicionário com os 4 VaRs: 95%, 97%, 99% e
+    99.9% do dataframe de retornos 'df'.
+
+    Args:
+        df (pd.DataFrame): dataframe dos retornos.
+
+    Returns:
+        dict: {'var_95': ..., 'var_97': ...,
+        'var_99: ..., 'var_99_9': ...}
+    """
     var_95 = np.nanpercentile(df, 5)
     var_97 = np.nanpercentile(df, 3)
     var_99 = np.nanpercentile(df, 1)
@@ -474,6 +494,18 @@ def value_risk(df: pd.DataFrame) -> dict:
 
 
 def c_value_risk(df: pd.DataFrame, var: dict) -> dict:
+    """Retorna o Conditional VaR dos retornos em 'df', dados
+    os VaRs em 'var'.
+
+    Args:
+        df (pd.DataFrame): dataframe de retornos.
+        var (dict): VaRs: {'var_95': ..., 'var_97':
+        ..., 'var_99: ..., 'var_99_9': ...}
+
+    Returns:
+        dict: {'c_var_95': ..., 'c_var_97': ...,
+        'c_var_99: ..., 'c_var_99_9': ...}
+    """
     c_vars = {
     f'c_{i[0]}': df[df['Retornos'] <= i[1]].mean()[0]
     for i in var.items()
@@ -482,6 +514,19 @@ def c_value_risk(df: pd.DataFrame, var: dict) -> dict:
 
 
 def vol(pesos: np.array, cov: pd.DataFrame, anual: bool=False) -> float:
+    """Retorna a volatilidade, anualizada ou não, a depender
+    de 'anual', dados o array de pesos 'pesos' e o dataframe
+    de covariância 'cov'.
+
+    Args:
+        pesos (np.array): array dos pesos dos ativos.
+        cov (pd.DataFrame): dataframe de covariância.
+        anual (bool, optional): se anual = True, retorna a
+        volatilidade anualizada: vol * np.sqrt(252). Padrão: False.
+
+    Returns:
+        float: volatlidade
+    """
     vol = np.sqrt(
         np.dot(pesos.T, np.dot(cov, pesos))
     )
@@ -491,12 +536,24 @@ def vol(pesos: np.array, cov: pd.DataFrame, anual: bool=False) -> float:
     return vol * np.sqrt(252)
 
 
-def beta(df1: pd.DataFrame, df2: pd.DataFrame) -> float:
-    df1 = df1.dropna()
-    df2 = df2.pct_change().dropna()
+def beta(ret_carteira: pd.DataFrame, ret_ibvsp: pd.DataFrame) -> float:
+    """Calcula o beta da carteira, dados seus retornos diários e
+    os retornos do ibovespa.
+
+    Args:
+        ret_carteira (pd.DataFrame): dataframe dos retornos diários
+        da carteira.
+        ret_ibvsp (pd.DataFrame): dataframe dos retornos diários do
+        ibovespa.
+
+    Returns:
+        float: beta.
+    """
+    ret_carteira = ret_carteira.dropna()
+    ret_ibvsp = ret_ibvsp.pct_change().dropna()
 
     df = pd.concat(
-        [df1, df2],
+        [ret_carteira, ret_ibvsp],
         axis=1,
         join='inner'
     )
@@ -510,10 +567,32 @@ def beta(df1: pd.DataFrame, df2: pd.DataFrame) -> float:
 
 
 def sharpe(ret: float, vol: float, risk_free_rate: float) -> float:
+    """Retorna o índice de Sharpe, dados o retorno total anuali-
+    zado, volatilidade anualizada e a taxa livre de risco.
+
+    Args:
+        ret (float): retorno total anualizado da carteira.
+        vol (float): volatilidade anual da carteira.
+        risk_free_rate (float): taxa livre de risco.
+
+    Returns:
+        float: índice de Sharpe: (ret - risk_free_rate) / vol.
+    """
     return (ret - risk_free_rate) / vol
 
 
 def comparison(vol_opt: float, vol_eq: float, ret_opt: float, ret_eq: float, risk_free_rate: float) -> None:
+    """Imprime na tela um comparativo percentual entre a carteira
+    de pesos otimizados e a carteira de pesos iguais, e também
+    o índice de Sharpe da carteira otimizada.
+
+    Args:
+        vol_opt (float): volatilidade da carteira otimizada.
+        vol_eq (float): volatlidade da carteira de pesos iguais.
+        ret_opt (float): retorno da carteira otimizada.
+        ret_eq (float): retorno da carteira de pesos iguais.
+        risk_free_rate (float): taxa livre de risco.
+    """
     vol_opt = round(vol_opt, 4)
     vol_eq = round(vol_eq, 4)
     print('Volatlidade com os pesos otimizados: '
@@ -534,6 +613,28 @@ def comparison(vol_opt: float, vol_eq: float, ret_opt: float, ret_eq: float, ris
 
 
 def find(candidates: list, stock: str) -> str:
+    """Retorna a qual lista de ativos o argumento 'stock'
+    pertence. Candidates é uma lista de listas, na ordem:
+
+    candidates = [
+        [acoes], [fiis], [rf]
+    ]
+
+    Args:
+        candidates (list): lista de listas, onde cada lista
+        contém, na ordem, as ações, os FIIs e os ativos de rf.
+        stock (str): ativo a ser determinado a qual lista per-
+        tence.
+
+    Raises:
+        f: Caso o ativo não seja encontrado, será levantada a
+        exceção.
+
+    Returns:
+        str: 'acoes', se 'stock' pertence a ações, 'fiis'
+        se 'stock' pertence aos FIIs e 'rf' se 'stock' per-
+        tence aos ativos de renda fixa.
+    """
     for c in candidates:
         if stock in candidates[0]:
             return 'acoes'
@@ -545,6 +646,13 @@ def find(candidates: list, stock: str) -> str:
 
 
 def plot_lines_go(dfs: list, titles: list):
+    """Imprime o go.Scatter referente às colunas dos
+    dataframes em 'dfs'.
+
+    Args:
+        dfs (list): lista dos dataframes a serem plotados.
+        titles (list): título do plot.
+    """
     cfg_layout = go.Layout(
         title=titles[0],
         xaxis=dict(
@@ -581,34 +689,14 @@ def plot_lines_go(dfs: list, titles: list):
     fig.show()
 
 
-def plot_hist_returns_go(series: list, labels: list, start: str, end: str, bins: float=.1) -> None:
-    hist_data = [s.fillna(0) for s in series]
-
-    fig = ff.create_distplot(series, labels, bin_size=bins)
-
-    fig.update_layout(
-        title=f'Carteira: {start} - {end}',
-        yaxis=dict(
-            title='Frequência',
-            showgrid=False
-        ),
-        xaxis=dict(
-            showgrid=False,
-            showspikes=True,
-            spikethickness=2,
-            spikedash='dot',
-            spikecolor='#999999',
-            spikemode='across'
-        ),
-        plot_bgcolor="#FFF",
-        hoverdistance=100,
-        spikedistance=1000
-    )
-
-    fig.show()
-
-
 def plot_heat_go(df: pd.DataFrame, title: str='Correlações', color: str='YlOrRd') -> None:
+    """Imprime go.Heatmap com x = df.columns, y = df.columns e z = df.corr().
+
+    Args:
+        df (pd.DataFrame): dataframe a partir do qual .corr() será aplicado.
+        title (str, optional): título do plot. Padrão:'Correlações'.
+        color (str, optional): escala do cor. Padrão: 'YlOrRd'.
+    """
     fig = go.Figure(
         data=go.Heatmap(
             z=df.corr(),
@@ -624,6 +712,15 @@ def plot_heat_go(df: pd.DataFrame, title: str='Correlações', color: str='YlOrR
 
 
 def plot_lines_sns(df: pd.DataFrame, titles: list, fsize: tuple=(19, 6)) -> None:
+    """Imprime o lineplot de df.
+
+    Args:
+        df (pd.DataFrame): dataframe.
+        titles (list): títulos a serem usados no plot:
+        plt.title(titles[0]), plt.xlabel(titles[1]) e
+        plt.ylabel(titles[2]).
+        fsize (tuple, optional): tamanho do plot. Padrão: (19, 6).
+    """
     plt.figure(figsize=fsize)
 
     sns.lineplot(
@@ -639,6 +736,14 @@ def plot_lines_sns(df: pd.DataFrame, titles: list, fsize: tuple=(19, 6)) -> None
 
 
 def plot_heat_sns(df: pd.DataFrame, title: str='Correlações', color: str='coolwarm', size: tuple=(12, 10)) -> None:
+    """Imprime sns.heatmap de df.corr().
+
+    Args:
+        df (pd.DataFrame): dataframe.
+        title (str, optional): título do plot. Padrão: to 'Correlações'.
+        color (str, optional): cmap. Padrão: 'coolwarm'.
+        size (tuple, optional): tamanho do plot. Padrâo: (12, 10).
+    """
     correlations = df.corr()
 
     mask = np.zeros_like(correlations)
@@ -656,6 +761,24 @@ def plot_heat_sns(df: pd.DataFrame, title: str='Correlações', color: str='cool
 
 
 def plot_opt_comparisons(rets: dict, vols: dict, sharpes: dict, colors: dict) -> None:
+    """Imprime um go.Bar com os valores de 'rets', 'vols' e 'sharpes'.
+
+    Args:
+        rets (dict): dicionário dos retornos das otimizações;
+        Ex: {peso_hrp: ..., peso_min_vol: ...}.
+        vols (dict): dicionário das volatilidades das otimizações;
+        Ex: {vol_hrp: ..., vol_min_vol: ...}.
+        sharpes (dict): dicionário dos índices de Sharpe das otimizações;
+        Ex: {sharpe_hrp: ..., sharpe_min_vol: ...}.
+        colors (dict): dicionário de cores para cada go.Bar:
+        Ex: colors = {
+                'rets': ret_cores,
+                'vols': vol_cores,
+                'sharpes': sharpe_cores
+            },
+        onde ret_cores é um iterator contendo as cores para cada registro,
+        e analogamente para vol_cores e sharpe_cores.
+    """
     data = [
         go.Bar(
             x=list(rets.keys()),

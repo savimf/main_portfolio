@@ -493,21 +493,22 @@ def value_risk(df: pd.DataFrame) -> dict:
     }
 
 
-def c_value_risk(df: pd.DataFrame, var: dict) -> dict:
+def c_value_risk(df: pd.DataFrame, var: dict, ret_name: str='Retornos') -> dict:
     """Retorna o Conditional VaR dos retornos em 'df', dados
     os VaRs em 'var'.
 
     Args:
         df (pd.DataFrame): dataframe de retornos.
         var (dict): VaRs: {'var_95': ..., 'var_97':
-        ..., 'var_99: ..., 'var_99_9': ...}
+        ..., 'var_99: ..., 'var_99_9': ...}.
+        ret_name (str): nome da coluna de retornos.
 
     Returns:
         dict: {'c_var_95': ..., 'c_var_97': ...,
         'c_var_99: ..., 'c_var_99_9': ...}
     """
     c_vars = {
-    f'c_{i[0]}': df[df['Retornos'] <= i[1]].mean()[0]
+    f'c_{i[0]}': df[df[ret_name] <= i[1]].mean()[0]
     for i in var.items()
     }
     return c_vars
@@ -735,7 +736,7 @@ def plot_lines_sns(df: pd.DataFrame, titles: list, fsize: tuple=(19, 6)) -> None
     plt.show()
 
 
-def plot_heat_sns(df: pd.DataFrame, title: str='Correlações', color: str='coolwarm', size: tuple=(12, 10)) -> None:
+def plot_heat_sns(df: pd.DataFrame, title: str='Correlações', color: str='coolwarm', size: tuple=(12, 10), rotate: bool=False) -> None:
     """Imprime sns.heatmap de df.corr().
 
     Args:
@@ -754,6 +755,9 @@ def plot_heat_sns(df: pd.DataFrame, title: str='Correlações', color: str='cool
         ax = sns.heatmap(correlations, mask=mask, annot=True,
                          cmap=color, fmt='.2f', linewidths=0.05,
                          vmax=1.0, square=True, linecolor='white')
+
+        if rotate:
+            ax.set_yticklabels(ax.get_yticklabels(), rotation=45)
 
     plt.title(title)
     plt.xlabel(None)

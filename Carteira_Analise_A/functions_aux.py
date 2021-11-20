@@ -569,7 +569,10 @@ def beta(ret_carteira: pd.DataFrame, ret_ibvsp: pd.DataFrame) -> float:
 
 def sharpe(ret: float, vol: float, risk_free_rate: float) -> float:
     """Retorna o índice de Sharpe, dados o retorno total anuali-
-    zado, volatilidade anualizada e a taxa livre de risco.
+    zado, volatilidade anualizada e a taxa livre de risco. Pode
+    também ser utilizado para retornar o índice de Sortino se
+    a volatilidade inserida refletir somente aquela de retornos
+    negativos.
 
     Args:
         ret (float): retorno total anualizado da carteira.

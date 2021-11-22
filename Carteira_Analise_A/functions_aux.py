@@ -599,21 +599,42 @@ def comparison(vol_opt: float, vol_eq: float, ret_opt: float, ret_eq: float, ris
     """
     vol_opt = round(vol_opt, 4)
     vol_eq = round(vol_eq, 4)
+
+    sgn = '+'
+    if vol_opt > vol_eq:
+        sgn = '-'
     print('Volatlidade com os pesos otimizados: '
         f'{vol_opt * 100} %\n'
         'Volatilidade com os pesos iguais: '
         f'{vol_eq * 100} %\n'
-        f'Diferença percentual: {-round((1 - vol_opt / vol_eq) * 100, 4)} %\n')
+        f'Diferença percentual: {sgn} {round(np.abs(1 - vol_opt / vol_eq) * 100, 4)} %\n'
+    )
 
     ret_opt = round(ret_opt, 4)
     ret_eq = round(ret_eq, 4)
+
+    sgn = '+'
+    if ret_opt < ret_eq:
+        sgn = '-'
     print('Retorno com os pesos otimizados: '
         f'{ret_opt * 100} %\n'
         'Retorno com os pesos iguais: '
         f'{ret_eq * 100} %\n'
-        f'Diferença percentual: {round((1 - ret_opt / ret_eq) * 100, 4)} %\n')
+        f'Diferença percentual: {sgn} {round(np.abs(1 - ret_opt / ret_eq) * 100, 4)} %\n'
+    )
 
-    print(f'Índice de Sharpe: {round(sharpe(ret_opt, vol_opt, risk_free_rate), 4)}')
+    sharpe_eq = round(sharpe(ret_eq, vol_eq, risk_free_rate), 4)
+    sharpe_opt = round(sharpe(ret_opt, vol_opt, risk_free_rate), 4)
+
+    sgn = '+'
+    if sharpe_opt < sharpe_eq:
+        sgn = '-'
+    print('Índice de Sharpe com os pesos iguais: '
+        f'{sharpe_eq}\n'
+        'Índice de Sharpe com os pesos otimizados: '
+        f'{sharpe_opt} \n'
+        f'Diferença percentual: {sgn} {round(np.abs(1 - sharpe_opt / sharpe_eq) * 100, 4)} %\n'
+    )
 
 
 def find(candidates: list, stock: str) -> str:

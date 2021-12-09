@@ -21,7 +21,10 @@ def get_default_args(f) -> dict:
 
 
 class Portfolio():
+    # dicionário para armazenar os portfólios (facilita na comparação das métricas)
     registered = {}
+
+    # tolerância para verificar se a soma de pesos é igual a 1
     delta = .001
 
     def __init__(self, name: str, tickers: list, start: str=None, end: str=None, source: str='iv'):
@@ -38,30 +41,69 @@ class Portfolio():
 
 
     def __str__(self) -> str:
+        """Método mágico str.
+
+        Returns:
+            str: retorna o nome do Portfolio.
+        """
         return self.__name
 
 
     def __len__(self) -> tuple:
+        """Método mágico len.
+
+        Returns:
+            tuple: retorna o formato do df de preços.
+        """
         return self.__prices.shape
 
 
     @classmethod
     def register(cls, portfolio) -> None:
+        """Adiciona o Portfólio no dicionário registered,
+        sendo portfolio.name a chave e portfolio o valor.
+
+        Args:
+            portfolio (Portfolio): objeto da classe Portfolio.
+        """
         cls.registered[portfolio.name] = portfolio
 
 
     @classmethod
     def unregister(cls, name: str) -> None:
+        """Remove o Portfolio de nome 'name' do dicionário
+        registered.
+
+        Args:
+            name (str): nome do Portfolio.
+        """
         del cls.registered[name]
 
 
     @property
     def name(self) -> str:
+        """Retorna o nome do Portfólio.
+
+        Returns:
+            str
+        """
         return self.__name
 
 
     @name.setter
-    def name(self, new_name) -> None:
+    def name(self, new_name: str) -> None:
+        """Atribui um novo nome a Portfolio. A alteração só
+        é permitida se len(new_name) != 0 e se new_name não
+        estiver registrado. O novo nome é automaticamente
+        registrado.
+
+        Args:
+            new_name (str): novo nome do Portfolio.
+
+        Raises:
+            ValueError: se len(new_name) == 0.
+            NameError: se new_name in Portfolio.registered.keys().
+        """
         if len(new_name) == 0:
             raise ValueError('Nome deve ter no mínimo um caracter.')
 
@@ -77,30 +119,60 @@ class Portfolio():
 
     @property
     def tickers(self) -> list:
+        """Lista de ativos do Portfolio.
+
+        Returns:
+            list
+        """
         return self.__tickers
 
 
     @tickers.setter
     def tickers(self, new_tickers: list) -> None:
+        """Atribui novos tickers do Portfolio.
+        (TROCA NÃO RECOMENDADA!)
+
+        Args:
+            new_tickers (list): se len(new_tickers) == 0.
+
+        Raises:
+            ValueError: uma lista com no mínimo um ticker deve ser
+            fornecida.
+        """
         if len(new_tickers) == 0:
             raise ValueError('Favor inserir uma lista com, no mínimo, um ticker.')
-        # elif (len(Portfolio.registered) > 1) and (self.name in Portfolio.registered.keys()):
-        #     raise AttributeError('Não é permitido alterar os tickers. Favor criar novo portfolio.')
 
         self.__tickers = new_tickers
 
 
     @property
     def weights(self) -> np.array:
+        """Distribuição de pesos dos ativos do Portfolio.
+
+        Returns:
+            np.array
+        """
         return self.__weights
 
 
     @weights.setter
     def weights(self, new_weights: np.array) -> None:
-        # if len(Portfolio.registered) > 0:
+        """Atribui novos pesos ao Portfolio. Se o mesmo
+        conter apenas um ticker, nenhuma troca será feita,
+        pois new_weights = np.array([1]) automaticamente.
+        Os novos pesos devem somar para 1, com tolerância
+        de Portfolio.delta. Quando a troca é realizada,
+        o registro é atualizado.
+
+        Args:
+            new_weights (np.array): array com os novos pesos.
+
+        Raises:
+            ValueError: se np.abs(1 - np.sum(new_weights)) >
+            Portfolio.delta.
+        """
         if len(self.tickers) == 1:
             new_weights = np.array([1])
-            # raise AttributeError('Peso não pode ser alterado para somente um ativo.')
         elif np.abs(1 - np.sum(new_weights)) > Portfolio.delta:
             raise ValueError('Os pesos devem somar para 1.')
 
@@ -110,11 +182,26 @@ class Portfolio():
 
     @property
     def dates(self) -> tuple:
+        """Retorna as datas que compõem o Portfolio.
+
+        Returns:
+            tuple: (start, end)
+        """
         return self.__dates
 
 
     @dates.setter
     def dates(self, new_dates: tuple) -> None:
+        """Atribui novas datas ao Portfolio.
+        (ALTERAÇÃO NÃO RECOMENDADA!)
+
+        Args:
+            new_dates (tuple): (start, end) no
+            formato 'dd/mm/aaaa'.
+
+        Raises:
+            ValueError: se somente uma das datas for inserida.
+        """
         check = sum(1 for d in new_dates if type(d) == str)
         if check == 2:
             self.__dates = new_dates
@@ -126,11 +213,22 @@ class Portfolio():
 
     @property
     def prices(self) -> pd.DataFrame:
+        """Dataframe dos preços diários do Portfolio.
+
+        Returns:
+            pd.DataFrame
+        """
         return self.__prices
 
 
     @prices.setter
     def prices(self, new_prices: pd.DataFrame) -> None:
+        """Atribui novos pesos ao Portfolio.
+        (ALTERAÇÃO NÃO RECOMENDADA!)
+
+        Args:
+            new_prices (pd.DataFrame)
+        """
         self.__prices = new_prices
 
 

@@ -1,0 +1,1 @@
+Diretório dedicado à comparação entre dois métodos de otimização de portfólio: geração aleatória de pesos e otimizações convexas. Também estão inclusos: módulo de configurações da biblioteca seaborn, funções auxiliares e classe auxiliar, construída para automatizar o cálculo e exibição das métricas.

@@ -12,6 +12,16 @@ import inspect
 
 
 def get_default_args(f) -> dict:
+    """Identifica, em forma de dicionário, os argumentos
+    default da função f.
+
+    Args:
+        f (function): função a ser analisada.
+
+    Returns:
+        dict: dicionário no formato
+        {'arg1': value1, 'arg2': value2}
+    """
     signature = inspect.signature(f)
     return {
         k: v.default
@@ -130,7 +140,7 @@ class Portfolio():
     @tickers.setter
     def tickers(self, new_tickers: list) -> None:
         """Atribui novos tickers do Portfolio.
-        (TROCA NÃO RECOMENDADA!)
+        (ALTERAÇÃO NÃO RECOMENDADA!)
 
         Args:
             new_tickers (list): se len(new_tickers) == 0.
@@ -233,6 +243,18 @@ class Portfolio():
 
 
     def d_returns(self, is_portfolio: bool=True, col_name: str='Retornos') -> pd.DataFrame:
+        """Retorna os retornos diários do portfólio, se
+        is_portfolio=True, ou dos ativos que o compõem, se
+        is_postfolio=False.
+
+        Args:
+            is_portfolio (bool, optional): refere-se aos retornos
+            do portfólio ou dos ativos que o compõem. Padrão: True.
+            col_name (str, optional): nome da coluna de retornos. Padrão: 'Retornos'.
+
+        Returns:
+            pd.DataFrame
+        """
         if is_portfolio:
             ret = (aux.returns(self.prices) * self.weights).sum(axis=1).to_frame()
             ret.rename(columns={0: col_name}, inplace=True)
@@ -241,16 +263,49 @@ class Portfolio():
 
 
     def total_returns(self, scaled: bool=True) -> pd.DataFrame:
+        """Retorna a variação total do período,
+        (preço final - preço inicial) / preço final,
+        se scaled=False, e retorna a variação anualizada se
+        scaled=True.
+
+        Args:
+            scaled (bool, optional): refere-se à anualização
+            dos retornos. Padrão: True.
+
+        Returns:
+            pd.DataFrame
+        """
         return aux.returns(self.prices, which='total', scaled=scaled).dropna()
 
 
     def acm_returns(self, is_portfolio: bool=True) -> pd.DataFrame:
+        """Retorna os retornos acumulados do portfólio, se
+        is_portfolio=True, ou dos ativos que o compõem, se
+        is_portfolio=False.
+
+        Args:
+            is_portfolio (bool, optional): refere-se ao retorno acm
+            do portfolio, ou dos ativos individuais. Padrão: to True.
+
+        Returns:
+            pd.DataFrame
+        """
         acm = (1 + self.d_returns(is_portfolio=is_portfolio)).cumprod()
         acm.rename(columns={'Retornos': self.name}, inplace=True)
         return acm.dropna()
 
 
     def portfolio_return(self, scaled: bool=False) -> float:
+        """Retorna o retorno do portfólio, da forma
+        total_returns.dot(weights), anualizado ou não.
+
+        Args:
+            scaled (bool, optional): refere-se à anualização
+            do retorno. Padrão: False.
+
+        Returns:
+            float
+        """
         return self.total_returns(scaled).dot(self.weights)
 
 

@@ -2,8 +2,6 @@ import pandas as pd
 import numpy as np
 import pypfopt as pf
 import functions_aux as aux
-import seaborn as sns
-import matplotlib.pyplot as plt
 from datetime import datetime as dt
 from scipy.stats import skew, kurtosis, shapiro
 from copy import deepcopy
@@ -12,16 +10,6 @@ import inspect
 
 
 def get_default_args(f) -> dict:
-    """Identifica, em forma de dicionário, os argumentos
-    default da função f.
-
-    Args:
-        f (function): função a ser analisada.
-
-    Returns:
-        dict: dicionário no formato
-        {'arg1': value1, 'arg2': value2}
-    """
     signature = inspect.signature(f)
     return {
         k: v.default
@@ -31,10 +19,7 @@ def get_default_args(f) -> dict:
 
 
 class Portfolio():
-    # dicionário para armazenar os portfólios (facilita na comparação das métricas)
     registered = {}
-
-    # tolerância para verificar se a soma de pesos é igual a 1
     delta = .001
 
     def __init__(self, name: str, tickers: list, start: str=None, end: str=None, source: str='iv'):
@@ -51,69 +36,45 @@ class Portfolio():
 
 
     def __str__(self) -> str:
-        """Método mágico str.
-
-        Returns:
-            str: retorna o nome do Portfolio.
-        """
         return self.__name
 
 
     def __len__(self) -> tuple:
-        """Método mágico len.
-
-        Returns:
-            tuple: retorna o formato do df de preços.
-        """
         return self.__prices.shape
+
+
+    # def __add__(self, new_name: str, portfolio) -> None:
+    #     new_p = self.transfer(
+    #         new_name,
+    #         self.weights
+    #     )
+    #     prices = new_p.prices
+
+    #     prices = pd.concat(
+    #         [prices, p.prices],
+    #         axis=1,
+    #         join='inner'
+    #     )
+
 
 
     @classmethod
     def register(cls, portfolio) -> None:
-        """Adiciona o Portfólio no dicionário registered,
-        sendo portfolio.name a chave e portfolio o valor.
-
-        Args:
-            portfolio (Portfolio): objeto da classe Portfolio.
-        """
         cls.registered[portfolio.name] = portfolio
 
 
     @classmethod
     def unregister(cls, name: str) -> None:
-        """Remove o Portfolio de nome 'name' do dicionário
-        registered.
-
-        Args:
-            name (str): nome do Portfolio.
-        """
         del cls.registered[name]
 
 
     @property
     def name(self) -> str:
-        """Retorna o nome do Portfólio.
-
-        Returns:
-            str
-        """
         return self.__name
 
 
     @name.setter
-    def name(self, new_name: str) -> None:
-        """Atribui um novo nome a Portfolio. A alteração só
-        é permitida se len(new_name) != 0 e se new_name não
-        estiver registrado. O novo nome é automaticamente
-        registrado.
-
-        Args:
-            new_name (str): novo nome do Portfolio.
-
-        Raises:
-            ValueError: se len(new_name) == 0.
-            NameError: se new_name in Portfolio.registered.keys().
-        """
+    def name(self, new_name) -> None:
         if len(new_name) == 0:
             raise ValueError('Nome deve ter no mínimo um caracter.')
 
@@ -129,60 +90,30 @@ class Portfolio():
 
     @property
     def tickers(self) -> list:
-        """Lista de ativos do Portfolio.
-
-        Returns:
-            list
-        """
         return self.__tickers
 
 
     @tickers.setter
     def tickers(self, new_tickers: list) -> None:
-        """Atribui novos tickers do Portfolio.
-        (ALTERAÇÃO NÃO RECOMENDADA!)
-
-        Args:
-            new_tickers (list): se len(new_tickers) == 0.
-
-        Raises:
-            ValueError: uma lista com no mínimo um ticker deve ser
-            fornecida.
-        """
         if len(new_tickers) == 0:
             raise ValueError('Favor inserir uma lista com, no mínimo, um ticker.')
+        # elif (len(Portfolio.registered) > 1) and (self.name in Portfolio.registered.keys()):
+        #     raise AttributeError('Não é permitido alterar os tickers. Favor criar novo portfolio.')
 
         self.__tickers = new_tickers
 
 
     @property
     def weights(self) -> np.array:
-        """Distribuição de pesos dos ativos do Portfolio.
-
-        Returns:
-            np.array
-        """
         return self.__weights
 
 
     @weights.setter
     def weights(self, new_weights: np.array) -> None:
-        """Atribui novos pesos ao Portfolio. Se o mesmo
-        conter apenas um ticker, nenhuma troca será feita,
-        pois new_weights = np.array([1]) automaticamente.
-        Os novos pesos devem somar para 1, com tolerância
-        de Portfolio.delta. Quando a troca é realizada,
-        o registro é atualizado.
-
-        Args:
-            new_weights (np.array): array com os novos pesos.
-
-        Raises:
-            ValueError: se np.abs(1 - np.sum(new_weights)) >
-            Portfolio.delta.
-        """
+        # if len(Portfolio.registered) > 0:
         if len(self.tickers) == 1:
             new_weights = np.array([1])
+            # raise AttributeError('Peso não pode ser alterado para somente um ativo.')
         elif np.abs(1 - np.sum(new_weights)) > Portfolio.delta:
             raise ValueError('Os pesos devem somar para 1.')
 
@@ -192,26 +123,11 @@ class Portfolio():
 
     @property
     def dates(self) -> tuple:
-        """Retorna as datas que compõem o Portfolio.
-
-        Returns:
-            tuple: (start, end)
-        """
         return self.__dates
 
 
     @dates.setter
     def dates(self, new_dates: tuple) -> None:
-        """Atribui novas datas ao Portfolio.
-        (ALTERAÇÃO NÃO RECOMENDADA!)
-
-        Args:
-            new_dates (tuple): (start, end) no
-            formato 'dd/mm/aaaa'.
-
-        Raises:
-            ValueError: se somente uma das datas for inserida.
-        """
         check = sum(1 for d in new_dates if type(d) == str)
         if check == 2:
             self.__dates = new_dates
@@ -223,38 +139,15 @@ class Portfolio():
 
     @property
     def prices(self) -> pd.DataFrame:
-        """Dataframe dos preços diários do Portfolio.
-
-        Returns:
-            pd.DataFrame
-        """
         return self.__prices
 
 
     @prices.setter
     def prices(self, new_prices: pd.DataFrame) -> None:
-        """Atribui novos pesos ao Portfolio.
-        (ALTERAÇÃO NÃO RECOMENDADA!)
-
-        Args:
-            new_prices (pd.DataFrame)
-        """
         self.__prices = new_prices
 
 
     def d_returns(self, is_portfolio: bool=True, col_name: str='Retornos') -> pd.DataFrame:
-        """Retorna os retornos diários do portfólio, se
-        is_portfolio=True, ou dos ativos que o compõem, se
-        is_postfolio=False.
-
-        Args:
-            is_portfolio (bool, optional): refere-se aos retornos
-            do portfólio ou dos ativos que o compõem. Padrão: True.
-            col_name (str, optional): nome da coluna de retornos. Padrão: 'Retornos'.
-
-        Returns:
-            pd.DataFrame
-        """
         if is_portfolio:
             ret = (aux.returns(self.prices) * self.weights).sum(axis=1).to_frame()
             ret.rename(columns={0: col_name}, inplace=True)
@@ -263,49 +156,16 @@ class Portfolio():
 
 
     def total_returns(self, scaled: bool=True) -> pd.DataFrame:
-        """Retorna a variação total do período,
-        (preço final - preço inicial) / preço final,
-        se scaled=False, e retorna a variação anualizada se
-        scaled=True.
-
-        Args:
-            scaled (bool, optional): refere-se à anualização
-            dos retornos. Padrão: True.
-
-        Returns:
-            pd.DataFrame
-        """
         return aux.returns(self.prices, which='total', scaled=scaled).dropna()
 
 
     def acm_returns(self, is_portfolio: bool=True) -> pd.DataFrame:
-        """Retorna os retornos acumulados do portfólio, se
-        is_portfolio=True, ou dos ativos que o compõem, se
-        is_portfolio=False.
-
-        Args:
-            is_portfolio (bool, optional): refere-se ao retorno acm
-            do portfolio, ou dos ativos individuais. Padrão: to True.
-
-        Returns:
-            pd.DataFrame
-        """
         acm = (1 + self.d_returns(is_portfolio=is_portfolio)).cumprod()
         acm.rename(columns={'Retornos': self.name}, inplace=True)
         return acm.dropna()
 
 
     def portfolio_return(self, scaled: bool=False) -> float:
-        """Retorna o retorno do portfólio, da forma
-        total_returns.dot(weights), anualizado ou não.
-
-        Args:
-            scaled (bool, optional): refere-se à anualização
-            do retorno. Padrão: False.
-
-        Returns:
-            float
-        """
         return self.total_returns(scaled).dot(self.weights)
 
 
@@ -328,7 +188,7 @@ class Portfolio():
 
 
     @__check('plot_in', ('sns', 'go'))
-    def benchmark(self, portfolios: list, plot_in: str='sns', fsize: tuple=(19, 6)) -> None:
+    def benchmark(self, portfolios: list, plot_in: str='sns', size: tuple=(19, 6)) -> None:
         if len(portfolios) == 0:
             raise ValueError('Favor listar no mínimo um portfólio.')
 
@@ -351,7 +211,7 @@ class Portfolio():
         ]
 
         if plot_in == 'sns':
-            aux.plot_lines_sns(df=bench, titles=titles)
+            aux.plot_lines_sns(df=bench, titles=titles, fsize=size)
         else:
             aux.plot_lines_go(dfs=[bench], titles=titles)
 

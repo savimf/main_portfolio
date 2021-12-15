@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import investpy as iv
 import yfinance as yf
+import quandl
 import pypfopt as pf
 from datetime import datetime as dt
 from dateutil.relativedelta import relativedelta as rd
@@ -64,7 +65,7 @@ def codigo_bc(code: int, start: str=None, end: str=None) -> pd.DataFrame:
     return df
 
 
-def carteira(ativos: list, start: str, end: str, source :str='iv') -> pd.DataFrame:
+def carteira(ativos: list, start: str, end: str, source: str='iv', crypto: bool=False) -> pd.DataFrame:
     """Retorna um dataframe com as variações diárias dos ativos (ações
     e FIIs) contidos em 'acoes', dentro do período 'start' e 'end'. É
     possível utilizar as fontes investing.com (source = 'iv') e yahoo
@@ -82,7 +83,7 @@ def carteira(ativos: list, start: str, end: str, source :str='iv') -> pd.DataFra
     """
     carteira_precos = pd.DataFrame()
 
-    if sum(1 for d in (start, end) if type(d) == str) == 0:
+    if sum(1 for d in (start, end) if isinstance(d, str)) == 0:
         return carteira_precos
 
     if source == 'iv':
@@ -96,12 +97,20 @@ def carteira(ativos: list, start: str, end: str, source :str='iv') -> pd.DataFra
         start = '-'.join(start.split('/')[::-1])
         end = '-'.join(end.split('/')[::-1])
 
-        for ativo in ativos:
-            t = yf.Ticker(f'{ativo}.SA')
-            carteira_precos[ativo] = t.history(
-                start=start,
-                end=end,
-                interval='1d')['Close']
+        if not crypto:
+            for ativo in ativos:
+                t = yf.Ticker(f'{ativo}.SA')
+                carteira_precos[ativo] = t.history(
+                    start=start,
+                    end=end,
+                    interval='1d')['Close']
+        else:
+            for ativo in ativos:
+                t = yf.Ticker(ativo)
+                carteira_precos[ativo] = t.history(
+                    start=start,
+                    end=end,
+                    interval='1d')['Close']
     else:
         raise NameError('Fonte inválida.')
 
@@ -128,8 +137,8 @@ def time_fraction(start: dt, end: dt, period: str='d') -> float:
     period = 'a' retorna 30/252 = 0.1190...
 
     Args:
-        start (str): data de início no formato dd/mm/aaaa.
-        end (str): data final no formato dd/mm/aaaa,
+        start (datetime): data de início.
+        end (datetime): data final,
         period (str, optional): escala de tempo: 'd', 'm' ou
         'a'. Padrão: 'd'.
 
@@ -137,10 +146,10 @@ def time_fraction(start: dt, end: dt, period: str='d') -> float:
         float: quantos dias/meses/anos há (de pregão)
         entre 'start' e 'end'.
     """
-    if type(start) == str:
+    if isinstance(start, str):
         start = dt.strptime(start, '%d/%m/%Y')
 
-    if type(end) == str:
+    if isinstance(end, str):
         end = dt.strptime(end, '%d/%m/%Y')
 
     n_days = rd(end, start).days
@@ -158,32 +167,72 @@ def time_fraction(start: dt, end: dt, period: str='d') -> float:
     raise KeyError("Período inválido -> 'd', 'm' ou 'a'.")
 
 
-def selic(start: str, end: str, period: str='d') -> float:
-    """Retorna a porcentagem, diária, mensal ou anual, média
-    da taxa selic da API do Banco Central entre 'start' e 'end',
-    a depender de 'period'.
+def get_quandl(taxa: str, start: dt, end: dt) -> pd.DataFrame:
+    """Retorna um pd.DataFrame, coletado do quandl, da taxa
+    ipca (código 12466) ou selic (código 4189) no período
+    [start, end].
 
     Args:
-        start (str): data de início no formato dd/mm/aaaa.
-        end (str): data final no formato dd/mm/aaaa.
-        period (str, optional): diária/mensal/anual ('d'/'m'/'a').
-        Padrão: 'd'.
+        taxa (str): ipca ou selic.
+        start (datetime): data de início.
+        end (datetime): data final
+
+    Raises:
+        NameError: se taxa not in ('ipca', 'selic')
 
     Returns:
-        float: média da taxa selic no período 'start' e 'end'.
+        pd.DataFrame
     """
-    s = codigo_bc(11, start, end).mean()[0]
+    cod = 0
+    if taxa.lower() == 'ipca':
+        cod = 12466
+    elif taxa.lower() == 'selic':
+        cod = 4189
+    else:
+        raise NameError('Taxa inválida. Usar ipca ou selic.')
 
-    # selic diária / mensal / anual
-    if period == 'd':
-        return s
+    df = quandl.get(
+        f'BCB/{cod}',
+        start_date=start.strftime('%Y-%m-%d'),
+        end_date=end.strftime('%Y-%m-%d')
+    )
+    df.rename(columns={'Value': taxa.upper()}, inplace=True)
+    return df
+
+
+def selic(start: dt, end: dt, period: str='a', is_number: bool=False):
+    """Retorna a variação, diária, mensal ou anual, da taxa Selic
+    da coletada do quandl entre 'start' e 'end', a depender de 'period'.
+
+    Args:
+        start (datetime): data de início.
+        end (datetime): data final.
+        period (str, optional): ('d'/'m'/'a'). Padrão: 'a'.
+        is_number (bool, optional): se False, retorna um pd.Series
+        com as variações. Se True, retorna o valor médio do período.
+        Padrão: False.
+
+    Returns:
+        pd.Series ou float.
+    """
+    s = get_quandl('selic', start, end) / 100
+
+    # selic anual / mensal / diária
+    if period == 'a':
+        pass
+        # s = (1 + s) ** (1 / time_fraction(start, end, 'a')) - 1
     elif period == 'm':
-        s = (1 + s) ** 21 - 1
-        return (1 + s) ** (1 / time_fraction(start, end, 'm')) - 1
-    elif period == 'a':
-        s = (1 + s) ** 252 - 1
-        return (1 + s) ** (1 / time_fraction(start, end, 'a')) - 1
-    raise TypeError("Período inválido -> 'd' (diário), 'm' (mensal) ou 'a' (anual).")
+        s = (1 + s) ** (1/12) - 1
+        # s = (1 + s) ** (1 / time_fraction(start, end, 'm')) - 1
+    elif period == 'd':
+        s = (1 + s) ** (1/252) - 1
+        # s = (1 + s) ** (1 / time_fraction(start, end, 'd')) - 1
+    else:
+        raise TypeError("Período inválido -> 'd' (diário), 'm' (mensal) ou 'a' (anual).")
+
+    if not is_number:
+        return s
+    return s.mean()[0]
 
 
 def returns(df: pd.DataFrame, which: str='daily', period: str='a', scaled: bool=True):
@@ -258,10 +307,10 @@ def plot_returns_sns(s: pd.Series, titles: list=None, size: tuple=(12, 8)) -> No
 
 def search(txt: str, n: int):
     """Função que coleta as 'n' primeiras buscas referentes a
-    txt = 'tesouro' ou txt = 'bvsp'.
+    txt = 'tesouro' ou txt = 'bvsp' ou txt = 'ifix'.
 
     Args:
-        txt (str): objeto a ser pesquisado: 'tesouro' ou 'bvsp'.
+        txt (str): objeto a ser pesquisado: 'tesouro', 'bvsp' ou 'ifix'.
         n (int): número de resultados.
 
     Returns:
@@ -270,7 +319,7 @@ def search(txt: str, n: int):
     pdt = []
     if txt == 'tesouro':
         pdt = ['bonds']
-    elif txt == 'bvsp':
+    elif txt in ('bvsp', 'ifix'):
         pdt = ['indices']
 
     search_results = iv.search_quotes(
@@ -283,7 +332,67 @@ def search(txt: str, n: int):
     return search_results
 
 
+def ifix(start: dt, end: dt) -> pd.DataFrame:
+    """Retorna um pd.DataFrame com os dados do índice
+    IFIX, no intervalo [start, end].
+
+    Args:
+        start (datetime): data de início.
+        end (datetime): data final.
+
+    Returns:
+        pd.DataFrame
+    """
+    # df = iv.search_quotes(
+    #     text='ifix',
+    #     products=['indices'],
+    #     countries=['brazil'],
+    #     n_results=1
+    # )
+    # df = df.retrieve_historical_data(
+    #     from_date=start.strftime('%d/%m/%Y'),
+    #     to_date=end.strftime('%d/%m/%Y')
+    # )['Close']
+    df = search('ifix', 1).retrieve_historical_data(
+        from_date=start.strftime('%d/%m/%Y'),
+        to_date=end.strftime('%d/%m/%Y')
+    )['Close']
+
+    # df = df.to_frame()
+    df.rename(columns={'Close': 'IFIX'}, inplace=True)
+    return df
+
+
+def ibvp(start: dt, end: dt) -> pd.DataFrame:
+    """Retorna um pd.DataFrame com os dados do índice
+    BVSP, no intervalo [start, end].
+
+    Args:
+        start (datetime): data de início.
+        end (datetime): data final.
+
+    Returns:
+        pd.DataFrame
+    """
+    df = search('bvsp', 1).retrieve_historical_data(
+        from_date=start.strftime('%d/%m/%Y'),
+        to_date=end.strftime('%d/%m/%Y')
+    )['Close']
+
+    # df.drop(df.columns[[0, 1, 2, 4, 5]], axis=1, inplace=True)
+    df.rename(columns={'Close': 'IBVP'}, inplace=True)
+    return df
+
+
 def plot_efficient_frontier(carteiras: list, color: str='brg', fsize: tuple=(12, 10)) -> None:
+    """Plota a fronteira eficiente, destacando em azul a de
+    mínima volatilidade e em vermelho a de máximo índice de Sharpe.
+
+    Args:
+        carteiras (list): [cart_aux, cart_max_sharpe, cart_min_vol]
+        color (str, optional): palette de cores. Padrão: 'brg'.
+        fsize (tuple, optional): tamanho do plot. Padrão: (12, 10).
+    """
     cart_aux = carteiras[0]
     carteira_max_sharpe = carteiras[1]
     carteira_min_vol = carteiras[2]
@@ -430,19 +539,19 @@ def c_value_risk(df: pd.DataFrame, var: dict, ret_name: str='Retornos') -> dict:
     return c_vars
 
 
-def vol(pesos: np.array, cov: pd.DataFrame, anual: bool=False) -> float:
+def vol(pesos: np.array, cov: pd.DataFrame, annual: bool=False) -> float:
     """Retorna a volatilidade, anualizada ou não, a depender
-    de 'anual', dados o array de pesos 'pesos' e o dataframe
+    de 'annual', dados o array de pesos 'pesos' e o dataframe
     de covariância 'cov'.
 
     Args:
         pesos (np.array): array dos pesos dos ativos.
         cov (pd.DataFrame): dataframe de covariância.
-        anual (bool, optional): se anual = True, retorna a
+        annual (bool, optional): se True, retorna a
         volatilidade anualizada: vol * np.sqrt(252). Padrão: False.
 
     Returns:
-        float: volatlidade
+        float.
     """
     vol = np.sqrt(
         np.dot(pesos.T, np.dot(cov, pesos))
@@ -464,7 +573,7 @@ def beta(ret_carteira: pd.DataFrame, ret_ibvsp: pd.DataFrame) -> float:
         ibovespa.
 
     Returns:
-        float: beta.
+        float.
     """
     df = pd.concat(
         [ret_carteira, ret_ibvsp],
@@ -493,7 +602,7 @@ def sharpe(ret: float, vol: float, risk_free_rate: float) -> float:
         risk_free_rate (float): taxa livre de risco.
 
     Returns:
-        float: índice de Sharpe: (ret - risk_free_rate) / vol.
+        float.
     """
     return (ret - risk_free_rate) / vol
 
@@ -542,10 +651,10 @@ def comparison(vol_opt: float, vol_eq: float, ret_opt: float, ret_eq: float, ris
     sgn = '+'
     if sharpe_opt < sharpe_eq:
         sgn = '-'
-    print('Índice de Sharpe com os pesos iguais: '
-        f'{sharpe_eq}\n'
-        'Índice de Sharpe com os pesos otimizados: '
-        f'{sharpe_opt} \n'
+    print('Índice de Sharpe com os pesos otimizados: '
+        f'{sharpe_opt}\n'
+        'Índice de Sharpe com os pesos iguais: '
+        f'{sharpe_eq} \n'
         f'Diferença percentual: {sgn} {round(np.abs(1 - sharpe_opt / sharpe_eq) * 100, 4)} %\n'
     )
 

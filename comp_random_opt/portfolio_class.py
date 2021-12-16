@@ -37,7 +37,7 @@ class Portfolio():
     # tolerância para verificar se a soma de pesos é igual a 1
     delta = .001
 
-    def __init__(self, name: str, tickers: list, start: str=None, end: str=None, source: str='iv'):
+    def __init__(self, name: str, tickers: list, start: dt=None, end: dt=None, source: str='iv'):
         self.name = name
         self.tickers = tickers
         self.weights = np.repeat(1/len(self.tickers), len(self.tickers))
@@ -212,7 +212,7 @@ class Portfolio():
         Raises:
             ValueError: se somente uma das datas for inserida.
         """
-        check = sum(1 for d in new_dates if type(d) == str)
+        check = sum(1 for d in new_dates if isinstance(d, dt))
         if check == 2:
             self.__dates = new_dates
         elif check == 1:
@@ -295,13 +295,13 @@ class Portfolio():
         return acm.dropna()
 
 
-    def portfolio_return(self, scaled: bool=False) -> float:
+    def portfolio_return(self, scaled: bool=True) -> float:
         """Retorna o retorno do portfólio, da forma
         total_returns.dot(weights), anualizado ou não.
 
         Args:
             scaled (bool, optional): refere-se à anualização
-            do retorno. Padrão: False.
+            do retorno. Padrão: True.
 
         Returns:
             float
@@ -442,7 +442,7 @@ class Portfolio():
         Returns:
             float.
         """
-        ret = self.portfolio_return(scaled=True)
+        ret = self.portfolio_return()
         vols = {'sharpe': self.volatility(), 'sortino': self.downside()}
 
         return aux.sharpe(ret, vols[which], risk_free_rate)
@@ -611,7 +611,7 @@ class Portfolio():
             pd.DataFrame
         """
         dict_metrics = {
-            'Retorno_anual': self.portfolio_return(scaled=True),
+            'Retorno_anual': self.portfolio_return(),
             'Volatilidade_anual': self.volatility(),
             'Ind. Sharpe': self.s_index(risk_free_rate),
             'Ind. Sortino': self.s_index(risk_free_rate, 'sortino'),

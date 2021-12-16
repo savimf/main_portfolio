@@ -65,7 +65,7 @@ def codigo_bc(code: int, start: str=None, end: str=None) -> pd.DataFrame:
     return df
 
 
-def carteira(ativos: list, start: str, end: str, source: str='iv', crypto: bool=False) -> pd.DataFrame:
+def carteira(ativos: list, start: dt, end: dt, source: str='iv', crypto: bool=False) -> pd.DataFrame:
     """Retorna um dataframe com as variações diárias dos ativos (ações
     e FIIs) contidos em 'acoes', dentro do período 'start' e 'end'. É
     possível utilizar as fontes investing.com (source = 'iv') e yahoo
@@ -73,8 +73,8 @@ def carteira(ativos: list, start: str, end: str, source: str='iv', crypto: bool=
 
     Args:
         ativos (list): lista dos ativos a serem baixados.
-        start (str): data de início no formato dd/mm/aaaa.
-        end (str): data de término no formato dd/mm/aaaa.
+        start (datetime): data de início.
+        end (datetime): data final.
         source (str, optional): fonte de coleta 'iv' ou 'yf'. Padrão: 'iv'.
 
     Returns:
@@ -83,7 +83,7 @@ def carteira(ativos: list, start: str, end: str, source: str='iv', crypto: bool=
     """
     carteira_precos = pd.DataFrame()
 
-    if sum(1 for d in (start, end) if isinstance(d, str)) == 0:
+    if sum(1 for d in (start, end) if isinstance(d, dt)) == 0:
         return carteira_precos
 
     if source == 'iv':
@@ -91,8 +91,8 @@ def carteira(ativos: list, start: str, end: str, source: str='iv', crypto: bool=
             carteira_precos[ativo] = iv.get_stock_historical_data(
                 stock=ativo,
                 country='brazil',
-                from_date=start,
-                to_date=end)['Close']
+                from_date=start.strftime('%d/%m/%Y'),
+                to_date=end.strftime('%d/%m/%Y'))['Close']
     elif source == 'yf':
         start = '-'.join(start.split('/')[::-1])
         end = '-'.join(end.split('/')[::-1])
@@ -101,15 +101,15 @@ def carteira(ativos: list, start: str, end: str, source: str='iv', crypto: bool=
             for ativo in ativos:
                 t = yf.Ticker(f'{ativo}.SA')
                 carteira_precos[ativo] = t.history(
-                    start=start,
-                    end=end,
+                    start=start.strftime('%d/%m/%Y'),
+                    end=end.strftime('%d/%m/%Y'),
                     interval='1d')['Close']
         else:
             for ativo in ativos:
                 t = yf.Ticker(ativo)
                 carteira_precos[ativo] = t.history(
-                    start=start,
-                    end=end,
+                    start=start.strftime('%d/%m/%Y'),
+                    end=end.strftime('%d/%m/%Y'),
                     interval='1d')['Close']
     else:
         raise NameError('Fonte inválida.')
@@ -356,9 +356,8 @@ def ifix(start: dt, end: dt) -> pd.DataFrame:
     df = search('ifix', 1).retrieve_historical_data(
         from_date=start.strftime('%d/%m/%Y'),
         to_date=end.strftime('%d/%m/%Y')
-    )['Close']
+    )['Close'].to_frame()
 
-    # df = df.to_frame()
     df.rename(columns={'Close': 'IFIX'}, inplace=True)
     return df
 
@@ -377,9 +376,8 @@ def ibvp(start: dt, end: dt) -> pd.DataFrame:
     df = search('bvsp', 1).retrieve_historical_data(
         from_date=start.strftime('%d/%m/%Y'),
         to_date=end.strftime('%d/%m/%Y')
-    )['Close']
+    )['Close'].to_frame()
 
-    # df.drop(df.columns[[0, 1, 2, 4, 5]], axis=1, inplace=True)
     df.rename(columns={'Close': 'IBVP'}, inplace=True)
     return df
 
@@ -557,7 +555,7 @@ def vol(pesos: np.array, cov: pd.DataFrame, annual: bool=False) -> float:
         np.dot(pesos.T, np.dot(cov, pesos))
     )
 
-    if not anual:
+    if not annual:
         return vol
     return vol * np.sqrt(252)
 

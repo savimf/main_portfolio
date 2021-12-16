@@ -16,3 +16,5 @@ A Fronteira Eficiente é o conjunto de carteiras otimizadas que oferecem o maior
 **Pra Não Dizer que Não Falei das Flores...**
 
 Todavia, nenhum gerenciador de investimentos ou analista (ninguém, na verdade) deve se basear meramente na teoria de Markowitz, pois fundamentalmente ela é incompleta (estamos falando de questões comportamentais). Não obstante, a teoria corrobora com a análise fundamentalista, não tendo a intenção de substituí-la, mas sim de servir como um ponto de partida e referência.
+
+O texto acima serve como base para todas as análises realizadas neste repositório. Para um breve resumo (mais matemático) das ideias centrais da teoria, [acesse aqui](https://bit.ly/327Z5rc). (Estou complementando-o aos poucos.)

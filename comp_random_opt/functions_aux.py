@@ -14,55 +14,7 @@ import matplotlib.pyplot as plt
 import visuals
 
 
-def codigo_bc(code: int, start: str=None, end: str=None) -> pd.DataFrame:
-    """Retorna um dataframe de um indicador da API do Banco Central. Por
-    exemplo, taxa selic (code = 11). Se 'start' e 'end' forem informados,
-    (datas) será retornado o dataframe somente do período em questão.
-
-    Args:
-        code (int): código do indicador no Banco Central.
-        start (str, optional): Data de início. Padrão: None.
-        end (str, optional): Data final. Padrão: None.
-
-    Returns:
-        pd.DataFrame: dataframe do indicador de código 'code'.
-    """
-    def find_line(df: pd.DataFrame, date: dt) -> int:
-        """Recebe um dataframe e uma data e retorna seu índice (linha)
-        no dataframe.
-
-        Args:
-            df (pd.DataFrame): dataframe a ser consultado.
-            date (datetime): data a ser localizado o índice.
-
-        Returns:
-            int: índice da linha da data informada.
-        """
-        k = 0
-        for d in df.index:
-            if d == date:
-                return k
-            k += 1
-        raise KeyError('Data não encontrada.')
-
-    url = f'http://api.bcb.gov.br/dados/serie/bcdata.sgs.{code}/dados?formato=json'
-    df = pd.read_json(url)
-    df['data'] = pd.to_datetime(df['data'], dayfirst=True)
-    df.set_index('data', inplace=True)
-    df = df / 100
-
-    if start and end:
-        start = dt.strptime(start, '%d/%m/%Y')
-        end = dt.strptime(end, '%d/%m/%Y')
-
-        k_start = find_line(df, start)
-        k_end = find_line(df, end)
-
-        return df.iloc[k_start:k_end + 1]
-    elif start or end:
-        raise KeyError('Favor informar ambas as datas.')
-
-    return df
+save_path = 'pictures/'
 
 
 def carteira(ativos: list, start: dt, end: dt, source: str='iv', crypto: bool=False) -> pd.DataFrame:
@@ -185,7 +137,7 @@ def get_quandl(taxa: str, start: dt, end: dt) -> pd.DataFrame:
     """
     cod = 0
     if taxa.lower() == 'ipca':
-        cod = 12466
+        cod = 13522
     elif taxa.lower() == 'selic':
         cod = 4189
     else:
@@ -200,9 +152,9 @@ def get_quandl(taxa: str, start: dt, end: dt) -> pd.DataFrame:
     return df
 
 
-def selic(start: dt, end: dt, period: str='a', is_number: bool=False):
+def selic(start: dt, end: dt, is_number: bool=False, period: str='a'):
     """Retorna a variação, diária, mensal ou anual, da taxa Selic
-    da coletada do quandl entre 'start' e 'end', a depender de 'period'.
+    coletada do quandl entre 'start' e 'end', a depender de 'period'.
 
     Args:
         start (datetime): data de início.
@@ -217,22 +169,20 @@ def selic(start: dt, end: dt, period: str='a', is_number: bool=False):
     """
     s = get_quandl('selic', start, end) / 100
 
-    # selic anual / mensal / diária
-    if period == 'a':
-        pass
-        # s = (1 + s) ** (1 / time_fraction(start, end, 'a')) - 1
-    elif period == 'm':
-        s = (1 + s) ** (1/12) - 1
-        # s = (1 + s) ** (1 / time_fraction(start, end, 'm')) - 1
-    elif period == 'd':
-        s = (1 + s) ** (1/252) - 1
-        # s = (1 + s) ** (1 / time_fraction(start, end, 'd')) - 1
-    else:
-        raise TypeError("Período inválido -> 'd' (diário), 'm' (mensal) ou 'a' (anual).")
+    if is_number:
+        s_mean = s.mean()[0]
+        n_months = s.shape[0]
 
-    if not is_number:
-        return s
-    return s.mean()[0]
+        # selic anual / mensal / diária
+        if period == 'a':
+            s = (1 + s_mean) ** (12 / n_months) - 1
+        elif period == 'm':
+            pass
+        elif period == 'd':
+            s = (1 + s_mean) ** (1 / (21 * n_months)) - 1
+        else:
+            raise TypeError("Período inválido -> 'd' (diário), 'm' (mensal) ou 'a' (anual).")
+    return s
 
 
 def returns(df: pd.DataFrame, which: str='daily', period: str='a', scaled: bool=True):
@@ -343,16 +293,6 @@ def ifix(start: dt, end: dt) -> pd.DataFrame:
     Returns:
         pd.DataFrame
     """
-    # df = iv.search_quotes(
-    #     text='ifix',
-    #     products=['indices'],
-    #     countries=['brazil'],
-    #     n_results=1
-    # )
-    # df = df.retrieve_historical_data(
-    #     from_date=start.strftime('%d/%m/%Y'),
-    #     to_date=end.strftime('%d/%m/%Y')
-    # )['Close']
     df = search('ifix', 1).retrieve_historical_data(
         from_date=start.strftime('%d/%m/%Y'),
         to_date=end.strftime('%d/%m/%Y')
@@ -382,7 +322,7 @@ def ibvp(start: dt, end: dt) -> pd.DataFrame:
     return df
 
 
-def plot_efficient_frontier(carteiras: list, color: str='brg', fsize: tuple=(12, 10)) -> None:
+def plot_efficient_frontier(carteiras: list, color: str='brg', fsize: tuple=(12, 10), save: bool=False) -> None:
     """Plota a fronteira eficiente, destacando em azul a de
     mínima volatilidade e em vermelho a de máximo índice de Sharpe.
 
@@ -426,6 +366,10 @@ def plot_efficient_frontier(carteiras: list, color: str='brg', fsize: tuple=(12,
     )
 
     plt.title('Fronteira Eficiente de Markowitz')
+
+    if save:
+        plt.savefig(save_path + 'eff_hd.png', dpi=200)
+
     plt.show()
 
 
@@ -728,7 +672,7 @@ def plot_heat_go(df: pd.DataFrame, title: str='Correlações', color: str='YlOrR
     fig.show()
 
 
-def plot_lines_sns(df: pd.DataFrame, titles: list, fsize: tuple=(19, 6), color: str=None) -> None:
+def plot_lines_sns(df: pd.DataFrame, titles: list, fsize: tuple=(19, 6), color: str=None, name: str=None) -> None:
     """Imprime o lineplot de df.
 
     Args:
@@ -758,7 +702,14 @@ def plot_lines_sns(df: pd.DataFrame, titles: list, fsize: tuple=(19, 6), color: 
     plt.title(titles[0])
     plt.xlabel(titles[1])
     plt.ylabel(titles[2])
-    plt.show();
+
+    if name:
+        if len(name) > 0:
+            plt.savefig(save_path + name + '.png', dpi=200)
+        else:
+            raise NameError('Nome da figura precisa ter ao menos um caracter.')
+
+    plt.show()
 
 
 def plot_heat_sns(df: pd.DataFrame, title: str='Correlações', color: str='coolwarm', size: tuple=(12, 10), rotate: bool=False) -> None:

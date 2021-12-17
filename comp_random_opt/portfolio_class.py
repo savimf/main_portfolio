@@ -344,7 +344,7 @@ class Portfolio():
 
 
     @__check('plot_in', ('sns', 'go'))
-    def benchmark(self, portfolios: list, plot_in: str='sns', fsize: tuple=(19, 6)) -> None:
+    def benchmark(self, portfolios: list, plot_in: str='sns', fsize: tuple=(19, 6), name: str=None) -> None:
         """Plot um benchmark do Portfolio que está chamando
         este método com os Portfolios em 'portfolios'. O plot
         pode ser pelo seaborn ou no plotly.
@@ -382,7 +382,7 @@ class Portfolio():
         ]
 
         if plot_in == 'sns':
-            aux.plot_lines_sns(df=bench, titles=titles)
+            aux.plot_lines_sns(df=bench, titles=titles, name=name)
         else:
             aux.plot_lines_go(dfs=[bench], titles=titles)
 

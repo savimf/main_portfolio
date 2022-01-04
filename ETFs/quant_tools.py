@@ -780,14 +780,14 @@ def plot_eff(
         r_ew = (1 + exp_rets.dot(w_ew)) ** .5 - 1
         v_ew = vol(w_ew, cov, False)
 
-        ax.plot([v_ew], [r_ew], color='goldenrod', marker='o', markersize=10)
+        ax.plot([v_ew], [r_ew], color='goldenrod', marker='o', markersize=10, label='EW')
 
     if show_gmv:
         w_gmv = gmv(cov)
         r_gmv = (1 + exp_rets.dot(w_gmv)) ** .5 - 1
         v_gmv = vol(w_gmv, cov, False)
 
-        ax.plot([v_gmv], [r_gmv], color='midnightblue', marker='o', markersize=10)
+        ax.plot([v_gmv], [r_gmv], color='midnightblue', marker='o', markersize=10, label='GMV')
 
     if show_cml:
         ax.set_xlim(left=0)
@@ -807,8 +807,11 @@ def plot_eff(
             marker='o',
             linestyle='dashed',
             markersize=10,
-            linewidth=2
+            linewidth=2,
+            label='Cap. Market Line'
         )
+
+    plt.legend()
 
     if save:
         plt.savefig(save_path + 'gen_portfolios.png', dpi=200)

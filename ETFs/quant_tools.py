@@ -125,8 +125,8 @@ def time_fraction(start: dt, end: dt, period: str='d') -> float:
 
 def get_quandl(taxa: str, start: dt, end: dt) -> pd.DataFrame:
     """Retorna um pd.DataFrame, coletado do quandl, da taxa
-    ipca (código 12466) ou selic (código 4189) no período
-    [start, end].
+    ipca (código 12466), ou imab (código 12466), ou selic
+    (código 4189) no período [start, end].
 
     Args:
         taxa (str): ipca ou selic.
@@ -541,14 +541,14 @@ def sharpe(ret: float, vol: float, risk_free_rate: float) -> float:
     return (ret - risk_free_rate) / vol
 
 
-def minimize_vol(target_return: float, exp_rets: pd.DataFrame, cov: pd.DataFrame) -> np.array:
+def minimize_vol(target_return: float, exp_rets: pd.Series, cov: pd.DataFrame) -> np.array:
     """Retorna os pesos do portfólio de mínima volatilidade, dado
     o retorno 'target_return', os retornos esperados 'exp_rets' e
     a matriz de covariância 'cov'.
 
     Args:
         target_return (float): retorno do portfólio desejado.
-        exp_rets (pd.DataFrame): retornos esperados.
+        exp_rets (pd.Series): retornos esperados.
         cov (pd.DataFrame): matriz de covariância.
 
     Returns:
@@ -581,15 +581,30 @@ def minimize_vol(target_return: float, exp_rets: pd.DataFrame, cov: pd.DataFrame
     return results.x
 
 
-def maximize_sr(exp_rets: pd.DataFrame, cov: pd.DataFrame, risk_free_rate: float=.03) -> np.array:
+def maximize_sr(exp_rets: pd.Series, cov: pd.DataFrame, risk_free_rate: float=.03) -> np.array:
+    """Retorna os pesos do portfólio de máximo índice de sharpe,
+    dados os retornos esperados, matriz de covariância e a taxa
+    livre de risco.
+
+    Args:
+        exp_rets (pd.Series): retornos esperados.
+        cov (pd.DataFrame): matriz de covariância.
+        risk_free_rate (float, optional): taxa livre de risco. Padrão: 0.03.
+
+    Returns:
+        np.array: [description]
     """
-    Returns the weights of the portfolio that gives you
-    the maximum Sharpe ratio, given the risk_free_rate,
-    expected returns and the covariance matrix.
-    """
-    def neg_sharpe_ratio(weights: np.array, exp_rets: pd.DataFrame, cov: pd.DataFrame, risk_free_rate: float=.03) -> float:
-        """
-        Returns the negative of the Sharpe ratio, given weights.
+    def neg_sharpe_ratio(weights: np.array, exp_rets: pd.Series, cov: pd.DataFrame, risk_free_rate: float=.03) -> float:
+        """Retorna o índice de Sharpe negativo, dado o array de pesos.
+
+        Args:
+            weights (np.array): pesos dos ativos.
+            exp_rets (pd.Series): retornos esperados.
+            cov (pd.DataFrame): matriz de covariância
+            risk_free_rate (float, optional): taxa livre de risco. Padrão: 0.03.
+
+        Returns:
+            float: [description]
         """
         r = exp_rets.dot(weights)
         v = vol(weights, cov, annual=False)
@@ -619,9 +634,13 @@ def maximize_sr(exp_rets: pd.DataFrame, cov: pd.DataFrame, risk_free_rate: float
 
 
 def gmv(cov: pd.DataFrame) -> np.array:
-    """
-    Returns the weights of the Global Minimum Variance
-    portfolio, given the covariance matrix.
+    """Retorna os pesos do portfólio GMV.
+
+    Args:
+        cov (pd.DataFrame): matriz de covariância.
+
+    Returns:
+        np.array
     """
     n = cov.shape[0]
     return maximize_sr(np.repeat(1, n), cov, 0)
@@ -652,6 +671,18 @@ def optimal_weights(exp_rets: pd.DataFrame, cov: pd.DataFrame, n_points: int) ->
 
 
 def find_port_min_vol(portfolios: pd.DataFrame, col_name: str='Volatilidade') -> pd.DataFrame:
+    """Retorna o portfólio de menor volatilidade entre todos
+    os 'portfolios'. Realiza a busca assumindo que o nome da
+    coluna com os valores das volatilidades é 'col_name'.
+
+    Args:
+        portfolios (pd.DataFrame): dataframe de portfólios.
+        col_name (str, optional): nome da coluna com os dados
+        das volatilidades. Padrão: 'Volatilidade'.
+
+    Returns:
+        pd.DataFrame
+    """
     min_vol = portfolios[col_name].min()
 
     port_min_vol = portfolios.loc[portfolios[col_name] == min_vol]
@@ -662,6 +693,18 @@ def find_port_min_vol(portfolios: pd.DataFrame, col_name: str='Volatilidade') ->
 
 
 def find_port_max_sr(portfolios: pd.DataFrame, col_name: str='Ind. Sharpe') -> pd.DataFrame:
+    """Retorna o portfólio de maior índice de Sharpe entre todos
+    os 'portfolios'. Realiza a busca assumindo que o nome da
+    coluna com os valores das volatilidades é 'col_name'.
+
+    Args:
+        portfolios (pd.DataFrame): dataframe de portfólios.
+        col_name (str, optional): nome da coluna com os dados
+        dos índices. Padrão: 'Ind. Sharpe'.
+
+    Returns:
+        pd.DataFrame
+    """
     max_sr = portfolios[col_name].max()
 
     port_max_sr = portfolios.loc[portfolios[col_name] == max_sr]

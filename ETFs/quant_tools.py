@@ -196,8 +196,8 @@ def selic(start: dt, end: dt, is_number: bool=False, period: str='a'):
 
 
 def returns(prices: pd.DataFrame, which: str='daily', period: str='a', scaled: bool=True):
-    """Retorna um dataframe ou uma série dos retornos de prices, a depender
-    de 'which', diários, mensais ou anuais, a depender de 'period'.
+    """Retorna um dataframe ou uma série dos retornos (diários) de prices,
+    a depender de 'which', diários, mensais ou anuais, a depender de 'period'.
 
     Ex: which = 'daily' retorna prices.pct_change().dropna() (retornos diários);
     which = 'total' retorna (prices.iloc[-1] - prices.iloc[0]) / prices.iloc[0]
@@ -209,7 +209,7 @@ def returns(prices: pd.DataFrame, which: str='daily', period: str='a', scaled: b
     Args:
         prices (pd.DataFrame): dataframe dos preços de fechamento.
         which (str, optional): tipo de retorno desejado: diário/total/
-        acumulado ('daily'/'total'/'acm'). Padrão: 'daily'.
+        mensal/acumulado ('daily'/'total'/'monthly'/'acm'). Padrão: 'daily'.
         period (str, optional): retorno diário/mensal/anual 'd'/'m'/'a'
         (válido somente para which = 'total'). Padrão: 'a'.
 
@@ -217,8 +217,13 @@ def returns(prices: pd.DataFrame, which: str='daily', period: str='a', scaled: b
         pd.DataFrame ou pd.Series: a depender de 'which'; retornos diários
         (dataframe), totais (series) ou acumulados (dataframe).
     """
+    r = prices.pct_change().dropna()
     if which == 'daily':
-        return prices.pct_change().dropna()
+        return r
+    elif which == 'monthly':
+        return r.groupby(
+            [df.index.year, df.index.month]
+        ).apply(lambda r: (1 + r).prod() - 1)
     elif which == 'total':
         rets = (prices.iloc[-1] - prices.iloc[0]) / prices.iloc[0]
 
@@ -233,8 +238,10 @@ def returns(prices: pd.DataFrame, which: str='daily', period: str='a', scaled: b
             return (1 + rets) ** (1 / n_years) - 1
         raise TypeError("Período inválido: 'm' ou 'a'.")
     elif which == 'acm':
-        return (1 + prices.pct_change().dropna()).cumprod()
-    raise TypeError("Tipo de retorno inválido: which -> 'daily', 'total' ou 'acm'.")
+        return (1 + r).cumprod()
+    raise TypeError(
+        "Tipo de retorno inválido: which -> 'daily', 'total', 'monthly, ou 'acm'."
+    )
 
 
 def search(txt: str, n: int):

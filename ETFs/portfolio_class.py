@@ -72,7 +72,7 @@ class Portfolio():
         return len(self.__tickers)
 
 
-    def __add__(self, second_p, join: str='inner') -> Portfolio:
+    def __add__(self, second_p, join: str='inner'):
         """Método mágico que possibilita a soma de dois
         objetos da classe Portfolio, pela concatenação
         dos preços de ambos. O Portfolio resultante re-
@@ -316,6 +316,17 @@ class Portfolio():
             ret.rename(columns={0: col_name}, inplace=True)
             return ret.dropna()
         return qt.returns(self.prices).dropna()
+
+
+    def m_returns(self, is_portfolio: bool=True) -> pd.DataFrame:
+        d_rets = self.d_returns(is_portfolio=is_portfolio)
+
+        if is_portfolio:
+            m_rets = d_rets.iloc[:, 0].groupby(
+                [df.index.year, df.index.month]
+            ).apply(lambda r: (1 + r).prod() - 1).to_frame()
+            return m_rets
+        return d_rets.aggregate(lambda r: qt.returns(r, 'monthly'))
 
 
     def total_returns(self, scaled: bool=True) -> pd.DataFrame:

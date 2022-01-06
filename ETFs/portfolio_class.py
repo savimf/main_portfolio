@@ -41,7 +41,14 @@ class Portfolio():
     # se True, permite a sobrescrita dos nomes
     overwrite = False
 
-    def __init__(self, name: str, tickers: list, start: dt=None, end: dt=None, source: str='iv'):
+    def __init__(
+        self,
+        name: str,
+        tickers: list,
+        start: dt=None, end: dt=None,
+        source: str='iv',
+        crypto: bool=False
+    ):
         self.name = name
         self.tickers = tickers
         self.weights = np.repeat(1/len(self.tickers), len(self.tickers))
@@ -50,7 +57,8 @@ class Portfolio():
             self.tickers,
             self.dates[0],
             self.dates[1],
-            source
+            source,
+            crypto
         )
 
 
@@ -323,7 +331,7 @@ class Portfolio():
 
         if is_portfolio:
             m_rets = d_rets.iloc[:, 0].groupby(
-                [df.index.year, df.index.month]
+                [d_rets.index.year, d_rets.index.month]
             ).apply(lambda r: (1 + r).prod() - 1).to_frame()
             return m_rets
         return d_rets.aggregate(lambda r: qt.returns(r, 'monthly'))
@@ -482,19 +490,30 @@ class Portfolio():
 
 
     @__check('period', ('d', 'm', 'a'))
-    def volatility(self, period: str='a') -> float:
+    def volatility(self, period: str='a', is_portfolio: bool=True) -> float:
         """Retorna a volatilidade diária, mensal ou
         anual, a depender de 'period'.
 
         Args:
             period (str, optional): período de interesse.
             Defaults to 'a' (anual).
+            is_portfolio (bool, optional): se False, calcula
+            a volatilidade individual dos ativos que compõem
+            o portfólio, através do desvio padrão dos retornos
+            diários. Se True, retorna a volatilidade do port-
+            fólio, considerando os pesos dos ativos e sua ma-
+            triz de covariância. Padrão: True.
 
         Returns:
             float.
         """
-        vol = qt.vol(self.weights, self.covariance(), annual=False)
         factor = {'d': 1, 'm': 21, 'a': 252}
+
+        if not is_portfolio:
+            d_rets = self.d_returns(is_portfolio=False)
+            return d_rets.std() * np.sqrt(factor[period])
+
+        vol = qt.vol(self.weights, self.covariance(), annual=False)
 
         return vol * np.sqrt(factor[period])
 
@@ -520,7 +539,12 @@ class Portfolio():
 
 
     @__check('which', (95, 97, 99, 99.9, None))
-    def var(self, *, which=None, kind: str='hist', is_neg: bool=True, modified: bool=False):
+    def var(
+        self, *,
+        which: int=None, kind: str='hist',
+        period: str='d', is_neg: bool=True,
+        modified: bool=False
+    ):
         """Retorna um pd.Series com os VaRs, históricos, ou
         paramétricos, 95, 97, 99 e 99.9, ou apenas um deles,
         escolhido através de 'which'. Os parâmetros obrigato-
@@ -531,19 +555,29 @@ class Portfolio():
             deve ser retornado: 95, 97, 99 ou 99.9. Padrão: None.
             kind (str, optional): módulo de cômputo do var: histórico
             ('hist') ou paramétrico ('param'). Padrão: 'hist'.
+            period (str, optional): VaR dos retornos diários ('d')
+            ou mensais ('m'). Padrão: 'd'.
             is_neg (bool, optional): se os valores retornados
             devem ser positivos ou negativos. Padrão: True.
             modified (bool, optional): somente válido se kind='param',
             se True, considera a skewness e a curtose da distribuição
             e realiza a correção de Cornish-Fisher.
 
+        Raises:
+            KeyError: se period not in ('d', 'm').
+
         Returns:
-            pd.Series, se which == None ou float, se which != None.
+            pd.Series, se which == None, ou float, se which != None.
         """
+        if period not in ('d', 'm'):
+            raise KeyError("Period inválido: usar 'd' ou 'm'.")
+
+        d_period = {'d': self.d_returns, 'm': self.m_returns}
+
         if kind == 'hist':
-            var = pd.Series(qt.vars_hist(self.d_returns()))
+            var = pd.Series(qt.vars_hist(d_period[period]()))
         elif kind == 'param':
-            var = pd.Series(qt.vars_gaussian(self.d_returns(), modified))
+            var = pd.Series(qt.vars_gaussian(d_period[period](), modified))
         else:
             raise IndexError('Modo de VaR inválido: usar "hist" ou "param".')
 
@@ -557,7 +591,12 @@ class Portfolio():
 
 
     @__check('which', (95, 97, 99, 99.9, None))
-    def cvar(self, *, which=None, kind: str='hist', is_neg: bool=True, modified: bool=False):
+    def cvar(
+        self, *,
+        which: int=None, kind: str='hist',
+        period: str='d', is_neg: bool=True,
+        modified: bool=False
+    ):
         """Retorna um pd.Series com os CVaRs, históricos, ou
         paramétricos, 95, 97, 99 e 99.9, ou apenas um deles,
         escolhido através de 'which'. Os parâmetros obrigato-
@@ -568,19 +607,30 @@ class Portfolio():
             deve ser retornado: 95, 97, 99 ou 99.9. Padrão: None.
             kind (str, optional): módulo de cômputo do CVaR: histórico
             ('hist') ou paramétrico ('param'). Padrão: 'hist'.
+            period (str, optional): VaR dos retornos diários ('d')
+            ou mensais ('m'). Padrão: 'd'.
             is_neg (bool, optional): se os valores retornados
             devem ser positivos ou negativos. Padrão: True.
             modified (bool, optional): somente válido se kind='param',
             se True, considera a skewness e a curtose da distribuição
             e realiza a correção de Cornish-Fisher.
 
+        Raises:
+            KeyError: se period not in ('d', 'm').
+            IndexError: se kind not in ('hist', 'param').
+
         Returns:
-            pd.Series, se which == None ou float, se which != None.
+            pd.Series, se which == None, ou float, se which != None.
         """
+        if period not in ('d', 'm'):
+            raise KeyError("Period inválido: usar 'd' ou 'm'.")
+
+        d_period = {'d': self.d_returns, 'm': self.m_returns}
+
         if kind == 'hist':
-            cvar = pd.Series(qt.cvars_hist(self.d_returns()))
+            cvar = pd.Series(qt.cvars_hist(d_period[period]()))
         elif kind == 'param':
-            cvar = pd.Series(qt.cvars_gaussian(self.d_returns(), modified=modified))
+            cvar = pd.Series(qt.cvars_gaussian(d_period[period](), modified=modified))
         else:
             raise IndexError('Modo de CVaR inválido: usar "hist" ou "param".')
 
@@ -593,11 +643,23 @@ class Portfolio():
         return cvar.loc[which]
 
 
-    def all_vars(self, is_neg: bool=False):
+    def all_vars(self, period: str='d', is_neg: bool=False) -> pd.DataFrame:
+        """Retorna um dataframe com os VaRs histórico, paramétrico,
+        e paramétrico ajustado.
+
+        Args:
+            period (str, optional): VaR dos retornos diários ('d') ou
+            mensais ('m'). Padrão: 'd'.
+            is_neg (bool, optional): se os valores retornados
+            devem ser positivos ou negativos. Padrão: True.
+
+        Returns:
+            pd.DataFrame
+        """
         return pd.DataFrame(
-            {'Hist': self.var(is_neg=is_neg),
-             'Parametric': self.var(kind='param', is_neg=is_neg),
-             'Parametric_Adj': self.var(kind='param', is_neg=is_neg, modified=True)}
+            {'Hist': self.var(period=period, is_neg=is_neg),
+             'Parametric': self.var(period=period, kind='param', is_neg=is_neg),
+             'Parametric_Adj': self.var(period=period, kind='param', is_neg=is_neg, modified=True)}
         )
 
 
@@ -703,27 +765,29 @@ class Portfolio():
         return True
 
 
-    def metrics(self, risk_free_rate: float=rf, window: int=21, benchmark=None) -> pd.DataFrame:
+    def metrics(self, risk_free_rate: float=rf, window: int=21, var_period: str='d', benchmark=None) -> pd.DataFrame:
         """Retorna um dataframe com uma coleção de métricas.
 
         Args:
             risk_free_rate (float, optional): taxa livre de risco. Padrão: 0.03.
             window (int, optional): janela de tempo (drawdown). Padrão: 21.
+            var_period (str, optional): período a ser calculado ('d', 'm').
+            Padrão: 'd'.
             benchmark (Portfolio, optional): benchmark (beta). Padrão: None.
 
         Returns:
             pd.DataFrame
         """
         dict_metrics = {
-            'Retorno_anual': self.portfolio_return(),
-            'Volatilidade_anual': self.volatility(),
+            'Retorno anual': self.portfolio_return(),
+            'Volatilidade anual': self.volatility(),
             'Ind. Sharpe': self.s_index(risk_free_rate),
             'Ind. Sortino': self.s_index(risk_free_rate, 'sortino'),
             'Skewness': self.calc_skewness(),
             'Ex_Curtose': self.calc_curtose(),
-            'VaR_99.9': self.var(which=99.9, is_neg=False),
-            'CVaR_99.9': self.cvar(which=99.9),
-            f'Max_Drawdown_{window}': self.rol_drawdown(window),
+            f'VaR 99.9 ({var_period})': self.var(which=99.9, period=var_period, is_neg=False),
+            f'CVaR 99.9 ({var_period})': self.cvar(which=99.9, period=var_period),
+            f'Max. Drawdown ({window})': self.rol_drawdown(window),
             'Downside': self.downside(),
             'Upside': self.upside(),
             'Normal': self.shapiro_test()
@@ -861,6 +925,7 @@ class Portfolio():
         portfolios: list=[],
         risk_free_rate: float=rf,
         window: int=21,
+        var_period: str='d',
         benchmark=None
     ) -> pd.DataFrame:
         """Retorna um dataframe com as métricas de todos os Portfolios
@@ -890,9 +955,9 @@ class Portfolio():
                 raise AttributeError('Favor somente listas Portfolios.')
 
 
-            df = portfolios[0].metrics(risk_free_rate, window, benchmark)
+            df = portfolios[0].metrics(risk_free_rate, window, var_period, benchmark)
             for p in portfolios[1:]:
-                df_ = p.metrics(risk_free_rate, window, benchmark)
+                df_ = p.metrics(risk_free_rate, window, var_period, benchmark)
                 df = pd.concat(
                     [df, df_],
                     axis=1,

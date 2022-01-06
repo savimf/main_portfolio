@@ -50,9 +50,6 @@ def carteira(ativos: list, start: dt, end: dt, source: str='iv', crypto: bool=Fa
                 from_date=start.strftime('%d/%m/%Y'),
                 to_date=end.strftime('%d/%m/%Y'))['Close']
     elif source == 'yf':
-        # start = '-'.join(start.split('/')[::-1])
-        # end = '-'.join(end.split('/')[::-1])
-
         if not crypto:
             for ativo in ativos:
                 t = yf.Ticker(f'{ativo}.SA')
@@ -129,28 +126,27 @@ def get_quandl(taxa: str, start: dt, end: dt) -> pd.DataFrame:
     (código 4189) no período [start, end].
 
     Args:
-        taxa (str): ipca ou selic.
+        taxa (str): ipca, imab, ou selic.
         start (datetime): data de início.
         end (datetime): data final
 
     Raises:
-        NameError: se taxa not in ('ipca', 'selic')
+        NameError: se taxa not in ('ipca', 'imab', 'selic')
 
     Returns:
         pd.DataFrame
     """
-    cod = 0
-    if taxa.lower() == 'ipca':
-        cod = 13522
-    elif taxa.lower() == 'imab':
-        cod = 12466
-    elif taxa.lower() == 'selic':
-        cod = 4189
-    else:
+    cod = {
+        'ipca': 13522,
+        'imab': 12466,
+        'selic': 4189
+    }
+
+    if taxa.lower() not in cod.keys():
         raise NameError('Taxa inválida. Usar ipca, imab ou selic.')
 
     df = quandl.get(
-        f'BCB/{cod}',
+        f'BCB/{int(cod[taxa.lower()])}',
         start_date=start.strftime('%Y-%m-%d'),
         end_date=end.strftime('%Y-%m-%d')
     )

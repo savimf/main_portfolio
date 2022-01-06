@@ -518,6 +518,24 @@ class Portfolio():
         return vol * np.sqrt(factor[period])
 
 
+    def volatilities(self, is_portfolio: bool=False) -> pd.DataFrame:
+        vol_m = self.volatility(period='m', is_portfolio=is_portfolio)
+        vol_a = self.volatility(period='a', is_portfolio=is_portfolio)
+        vol_d = self.volatility(period='d', is_portfolio=is_portfolio)
+
+        if not is_portfolio:
+            return pd.DataFrame({
+                'Diária': vol_d,
+                'Mensal': vol_m,
+                'Anual': vol_a
+            })
+        return pd.Series({
+            'Diária': vol_d,
+            'Mensal': vol_m,
+            'Anual': vol_a
+        }).to_frame().rename(columns={0: 'Volatilidade'})
+
+
     @__check('which', ('sharpe', 'sortino'))
     def s_index(self, risk_free_rate: float=rf, which: str='sharpe') -> float:
         """Retorna o índice de Sharpe ou de Sortino, a depender

@@ -330,9 +330,15 @@ class Portfolio():
         d_rets = self.d_returns(is_portfolio=is_portfolio)
 
         if is_portfolio:
+            # dataframe com multindex
             m_rets = d_rets.iloc[:, 0].groupby(
                 [d_rets.index.year, d_rets.index.month]
             ).apply(lambda r: (1 + r).prod() - 1).to_frame()
+
+            # deixando o index como Y-m, em datetime
+            m_rets.index = map(
+                lambda t: dt(t[0], t[1], 1).strftime('%Y-%m'), m_rets.index
+            )
             return m_rets
         return d_rets.aggregate(lambda r: qt.returns(r, 'monthly'))
 

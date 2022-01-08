@@ -769,10 +769,7 @@ def plot_portfolios(
     if save:
         plt.savefig(save_path + 'portfolios_hd.png', dpi=200)
 
-    if not is_return:
-        plt.show()
-    else:
-        return ax
+    return ax if is_return else plt.show()
 
 
 def plot_eff(
@@ -862,10 +859,7 @@ def plot_eff(
     if save:
         plt.savefig(save_path + 'gen_portfolios.png', dpi=200)
 
-    if not is_return:
-        plt.show()
-    else:
-        return ax
+    return ax if is_return else plt.show()
 
 
 def comparison(vol_opt: float, vol_eq: float, ret_opt: float, ret_eq: float, risk_free_rate: float) -> None:
@@ -991,6 +985,57 @@ def plot_returns_sns(rets: pd.Series, titles: list=None, size: tuple=(12, 8)) ->
     plt.ylabel(titles[2])
 
 
+def plot_monthly_returns(
+    rets: pd.Series,
+    title: str='Retornos Mensais',
+    show_mean: bool=True,
+    show_median: bool=True,
+    size: tuple=(18, 6),
+    name: str=None,
+    is_return: bool=False
+) -> None:
+    """Função desenvolvida especificamente para plotar os retornos
+    mensais, em barplot. Imprime também a média e a mediana dos
+    mesmos, se desejado. Salva o plot se 'name' for dado.
+
+    Args:
+        rets (pd.Series): retornos (mensais).
+        show_mean (bool, optional): se True, também exibe a média.
+        show_median (bool, optional): se True, também exibe a mediana.
+        size (tuple): tamanho do plot.
+        name (str, optional): se != None, salva o plot em 'save_path'.
+
+    Raises:
+        NameError: se len(name) == 0.
+    """
+    colors = map(lambda r: 'indianred' if r < 0 else 'blue', rets)
+
+    fig, ax = plt.subplots(figsize=size)
+    rets.plot.bar(
+        ax=ax,
+        color=list(colors)
+    )
+
+    if show_mean:
+        ax.axhline(y=rets.mean(), ls=':', color='green', label='Média')
+    if show_median:
+        ax.axhline(y=rets.median(), ls='-', color='goldenrod', label='Mediana')
+
+    if show_mean or show_median:
+        plt.legend()
+
+    plt.title(title)
+    plt.ylabel('Percentual')
+
+    if name:
+        if len(name) > 0:
+            plt.savefig(save_path + str(name) + '.png', dpi=200)
+        else:
+            raise NameError('Nome da figura precisa ter ao menos um caracter.')
+
+    return ax if is_return else plt.show()
+
+
 def plot_lines(
     dfs: list,
     titles: list=[None, None, None],
@@ -1015,6 +1060,9 @@ def plot_lines(
         fontsize (int, optional): tamanho da fonte da legenda. Padrão: 10.
         name (str, optional): nome do arquivo para salvar o .png.
         Padrão: None.
+
+    Raises:
+        NameError: se len(name) == 0.
     """
     if plot_in == 'sns':
         df_ = dfs[0]
@@ -1047,14 +1095,11 @@ def plot_lines(
 
         if name:
             if len(name) > 0:
-                plt.savefig(save_path + name + '.png', dpi=200)
+                plt.savefig(save_path + str(name) + '.png', dpi=200)
             else:
                 raise NameError('Nome da figura precisa ter ao menos um caracter.')
 
-        if not is_return:
-            plt.show()
-        else:
-            return ax
+        return ax if is_return else plt.show()
     elif plot_in == 'go':
         layout = layout_settings(titles)
 

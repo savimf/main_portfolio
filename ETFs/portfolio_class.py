@@ -495,14 +495,10 @@ class Portfolio():
         return qt.beta(ret_port, ret_bench)
 
 
-    @__check('period', ('d', 'm', 'a'))
-    def volatility(self, period: str='a', is_portfolio: bool=True) -> float:
-        """Retorna a volatilidade diária, mensal ou
-        anual, a depender de 'period'.
+    def volatility(self, is_portfolio: bool=True):
+        """Retorna as volatilidades diária, mensal e anual.
 
         Args:
-            period (str, optional): período de interesse.
-            Defaults to 'a' (anual).
             is_portfolio (bool, optional): se False, calcula
             a volatilidade individual dos ativos que compõem
             o portfólio, através do desvio padrão dos retornos
@@ -511,35 +507,23 @@ class Portfolio():
             triz de covariância. Padrão: True.
 
         Returns:
-            float.
+            pd.DataFrame, se is_portfolio==False,
+            pd.Series, se is_portfolio==True.
         """
-        factor = {'d': 1, 'm': 21, 'a': 252}
-
         if not is_portfolio:
-            d_rets = self.d_returns(is_portfolio=False)
-            return d_rets.std() * np.sqrt(factor[period])
+            return pd.DataFrame(
+                data=map(
+                    lambda p: self.d_returns(is_portfolio=False).std() * np.sqrt(p), (1, 21, 252)
+                ),
+                index=['Diária', 'Mensal', 'Anual']
+            )
 
-        vol = qt.vol(self.weights, self.covariance(), annual=False)
-
-        return vol * np.sqrt(factor[period])
-
-
-    def volatilities(self, is_portfolio: bool=False) -> pd.DataFrame:
-        vol_m = self.volatility(period='m', is_portfolio=is_portfolio)
-        vol_a = self.volatility(period='a', is_portfolio=is_portfolio)
-        vol_d = self.volatility(period='d', is_portfolio=is_portfolio)
-
-        if not is_portfolio:
-            return pd.DataFrame({
-                'Diária': vol_d,
-                'Mensal': vol_m,
-                'Anual': vol_a
-            })
+        vol_d = qt.vol(self.weights, self.covariance(), annual=False)
         return pd.Series({
             'Diária': vol_d,
-            'Mensal': vol_m,
-            'Anual': vol_a
-        }).to_frame().rename(columns={0: 'Volatilidade'})
+            'Mensal': vol_d * np.sqrt(21),
+            'Anual': vol_d * np.sqrt(252)
+        })
 
 
     @__check('which', ('sharpe', 'sortino'))

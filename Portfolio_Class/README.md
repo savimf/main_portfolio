@@ -3,8 +3,8 @@
 ## 1. Objetivo
 Automatizar o cálculo de métricas quantitativas e a comparação entre elas para vários portfólios. Funciona em paralelo com o módeulo `quant_tools.py`.
 
-## 2. Atributps
-## 2.1 Atributos de Instância
+## 2. Atributos
+## 2.1 Instância
 Um objeto `Portfolio` assume a forma
 
 ```python
@@ -18,8 +18,8 @@ onde
 - `source`: fonte da coleta dos dados (por enquanto, somente investing.com, `source = 'iv'`, ou Yahoo Finance `source = 'yf'`). Padrão: `'iv'`.;
 - `crypto`: se os ativos em `tickers` forem criptomoedas, setar como `True` para baixá-los do Yahoo Finance. Este paramêtro deve-se à formatação da string a ser utilizada na API na hora de realizar o download.
 
-### 2.2 Atributos de Classe
-1. `registered`: dicionário que armazena os nomes dos `Portfolios`. Dado `p` como definido acima, teríamos
+### 2.2 Classe
+1. `registered`: dicionário que armazena os nomes dos `Portfolio`s. Dado `p` como definido acima, teríamos
 
 ```python
 registered = {'name': p}
@@ -42,7 +42,7 @@ Para iniciarmos um objeto `Portfolio`, portanto, basta seu nome e uma lista de t
 Por exemplo, para instanciarmos um `Portfolio` com os ativos ITSA4, SULA11 e SAPR11, entre o período 01/01/2020 e 01/01/2021, do investing.com, fazemos
 
 ```python
-p = Portfolio(
+p1 = Portfolio(
     name='exemplo',
     tickers=['ITSA4', 'SULA11', 'SAPR11'],
     start=datetime(2020, 1, 1),
@@ -50,16 +50,29 @@ p = Portfolio(
 )
 ```
 
-Visualizamos os preços de fechamento, dos três ativos, com `p.prices`. Se fizermos, `p.weights`, obtemos
+Visualizamos os preços de fechamento, dos três ativos, com `p1.prices`. Se fizermos, `p1.weights`, obtemos
 
 ```python
-p.weights = array([0.33333333, 0.33333333, 0.33333333])
+p1.weights -> array([0.33333333, 0.33333333, 0.33333333])
 ```
 
 Se quisermos alterá-los, digamos, para 50%, 30% e 20%, fazemos
 
 ```python
-p.weights = np.array([.5, .3, .2])
+p1.weights = np.array([.5, .3, .2])
+```
+
+Para criptoativos, digamos, BTC e ETH, baixamos do Yahoo Finance com
+
+```python
+p2 = Portfolio(
+    name='exemplo-cripto',
+    tickers=['BTC-USD', 'ETH-USD'],
+    start=datetime(2020, 1, 1),
+    end=datetime(2021, 1, 1)
+    source='yf',
+    crypto=True
+)
 ```
 
 ### 3.2 Vazio
@@ -74,7 +87,7 @@ ibvp_past.dates = (start_past_dt, end_past_dt)
 Portfolio.register(ibvp_past)
 ```
 
-Note, porém, que também é necessário setar as datas e registrar o objeto.
+Note, porém, que também é necessário setar as datas e registrar o objeto. Ao executarmos `Portfolio.registered`, obtemos um dicionário com os nomes dos três `Portfolio`s instanciados, como chaves, e seus endereços de memória como valor.
 
 ## 4. Propriedades
 
@@ -119,7 +132,7 @@ Seja `p` um `Portfolio`.
 
 6. `p.covariance()`: matriz de covariância
 
-7. `p.benchmark([portfolios])`: plota o benchmark de `p` contra os `Portfolios` em portfolios
+7. `p.benchmark([portfolios])`: plota o benchmark de `p` contra os `Portfolio`s em portfolios
 
 8. `p.beta(benchmark)`: beta do portfólio, tendo como benchmark (e.g., IBOVESPA) `benchmark`
 
@@ -161,8 +174,8 @@ Seja `p` um `Portfolio`.
 
 4. `all_vols()`: volatilidade de todos os `Portfolio`s registrados
 
-5. `all_sindex()`: índices de Sharpe, ou Sortino, de todos os `Portfolios`s registrados
+5. `all_sindex()`: índices de Sharpe, ou Sortino, de todos os `Portfolio`s registrados
 
-6. `all_weights()`: pesos de todos os `Portfolios`s registrados
+6. `all_weights()`: pesos de todos os `Portfolio`s registrados
 
 7. `all_metrics([portfolios])`: aplica o método `metrics()` a todos os `Portfolio`s em `portfolios`, concatena-os e retorna um DataFrame
